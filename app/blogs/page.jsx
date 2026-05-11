@@ -20,7 +20,7 @@ export default function BlogsListPage() {
     try {
       setLoading(true);
       // Fetches from your central API
-      const response = await axios.get("https://getknowify.com/api/blogs");
+      const response = await axios.get("https://www.getknowify.com/api/blogs");
       
       if (response.data.success) {
         setBlogs(response.data.blogs);
@@ -46,7 +46,7 @@ export default function BlogsListPage() {
     setBlogs(blogs.filter((blog) => blog.slug !== slug));
 
     try {
-      const response = await axios.delete(`/api/blogs/${slug}`);
+      const response = await axios.delete(`https://www.getknowify.com/api/blogs/${slug}`);
       
       if (!response.data.success) {
         // Revert if backend fails

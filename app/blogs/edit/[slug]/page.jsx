@@ -39,7 +39,7 @@ export default function EditBlogPage({ params }) {
     try {
       setIsLoading(true);
       // Use relative path for Axios in client components
-      const response = await axios.get(`https://getknowify.com/api/blogs/${slug}`);
+      const response = await axios.get(`https://www.getknowify.com/api/blogs/${slug}`);
       
       if (response.data.success) {
         const blog = response.data.blog;
@@ -75,10 +75,10 @@ export default function EditBlogPage({ params }) {
     setError("");
 
     try {
-      const response = await axios.put(`/api/blogs/${slug}`, formData);
+      const response = await axios.put(`https://www.getknowify.com/api/blogs/${slug}`, formData);
       if (response.data.success) {
         // Redirect back to admin list on success
-        router.push("/dashboard/blogs"); 
+        router.push("/blogs"); 
       } else {
         setError(response.data.error || "Failed to update blog post.");
       }
@@ -96,9 +96,9 @@ export default function EditBlogPage({ params }) {
 
     setIsDeleting(true);
     try {
-      const response = await axios.delete(`/api/blogs/${slug}`);
+      const response = await axios.delete(`https://www.getknowify.com/api/blogs/${slug}`);
       if (response.data.success) {
-        router.push("/dashboard/blogs");
+        router.push("/blogs");
       } else {
         setError(response.data.error || "Failed to delete blog post.");
         setIsDeleting(false);
@@ -131,7 +131,7 @@ export default function EditBlogPage({ params }) {
       {/* HEADER WITH BACK BUTTON */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/blogs" className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors">
+          <Link href="/blogs" className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors">
             <ArrowLeft size={20} />
           </Link>
           <div>

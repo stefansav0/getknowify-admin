@@ -37,7 +37,7 @@ export default function CreateBlogPage() {
 
     try {
       // Use relative path for best compatibility with local/prod environments
-      const response = await axios.post("https://getknowify.com/api/blogs", formData);
+      const response = await axios.post("https://www.getknowify.com/api/blogs", formData);
 
       if (response.data.success) {
         setSuccess(true);
