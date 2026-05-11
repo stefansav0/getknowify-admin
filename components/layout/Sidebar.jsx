@@ -23,24 +23,19 @@ const menuItems = [
     href: "/letters",
   },
   {
-    name: "Messages",
-    icon: MessageCircle,
-    href: "/messages",
-  },
-  {
     name: "Quizzes",
     icon: ClipboardList,
     href: "/quizzes",
   },
   {
-    name: "Results",
-    icon: Trophy,
-    href: "/results",
-  },
-  {
     name: "Scores",
     icon: Star,
     href: "/scores",
+  },
+  {
+    name: "Blog",
+    icon: MessageCircle,
+    href: "/blogs",
   },
 ];
 

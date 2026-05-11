@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Mail, Brain, FileQuestion, Sparkles, Clock3, Activity, Loader2 } from "lucide-react";
+import { Mail, Brain, Users, FileQuestion, Sparkles, Activity, Loader2, Calendar } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -12,113 +12,165 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend
 } from "recharts";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    totalLetters: 0,
-    totalQuizzes: 0,
-    totalQuestions: 0,
-    todayLetters: 0,
-    todayQuizzes: 0,
-    recentQuizzes: [],
-    chartData: [],
+  // 1. RAW DATA STATE (Fetched once)
+  const [rawData, setRawData] = useState({
+    letters: [],
+    quizzes: [],
+    scores: [],
   });
 
+  // 2. UI & FILTER STATE
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState("7d"); // 'today', '7d', '30d', 'all', 'custom'
+  const [customDates, setCustomDates] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0],
+  });
+
+  // 3. CALCULATED DISPLAY STATE
+  const [displayStats, setDisplayStats] = useState({
+    lettersCount: 0,
+    quizzesCount: 0,
+    scoresCount: 0,
+    uniqueUsers: 0,
+    questionsCount: 0,
+    chartData: [],
+    recentQuizzes: [],
+  });
 
   // ==========================================
-  // FETCH DASHBOARD DATA
+  // INITIAL FETCH (Get everything)
   // ==========================================
   useEffect(() => {
-    fetchDashboardData();
+    fetchAllData();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchAllData = async () => {
     try {
-      const [lettersRes, quizzesRes] = await Promise.all([
-        axios.get("/api/letters"),
-        axios.get("/api/quizzes"),
+      setLoading(true);
+      const [lettersRes, quizzesRes, scoresRes] = await Promise.all([
+        axios.get("/api/letters").catch(() => ({ data: [] })),
+        axios.get("/api/quizzes").catch(() => ({ data: [] })),
+        axios.get("/api/scores").catch(() => ({ data: [] })),
       ]);
 
-      const letters = lettersRes.data?.letters || [];
-      const quizzes = quizzesRes.data?.quizzes || quizzesRes.data || [];
-
-      // ==========================================
-      // DATE HELPERS
-      // ==========================================
-      const today = new Date();
-      const isToday = (date) => {
-        if (!date) return false;
-        const d = new Date(date);
-        return (
-          d.getDate() === today.getDate() &&
-          d.getMonth() === today.getMonth() &&
-          d.getFullYear() === today.getFullYear()
-        );
-      };
-
-      // ==========================================
-      // COUNTS & AGGREGATIONS
-      // ==========================================
-      const todayLetters = letters.filter((l) => isToday(l.createdAt)).length;
-      const todayQuizzes = quizzes.filter((q) => isToday(q.createdAt)).length;
-
-      const totalQuestions = quizzes.reduce((acc, quiz) => {
-        return acc + (quiz.questions?.length || 0);
-      }, 0);
-
-      const recentQuizzes = [...quizzes]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5);
-
-      // ==========================================
-      // GENERATE 7-DAY CHART DATA
-      // ==========================================
-      const generateChartData = () => {
-        const data = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dateString = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-          const isSameDay = (itemDate) => {
-            if (!itemDate) return false;
-            const id = new Date(itemDate);
-            return (
-              id.getDate() === d.getDate() &&
-              id.getMonth() === d.getMonth() &&
-              id.getFullYear() === d.getFullYear()
-            );
-          };
-
-          data.push({
-            name: dateString,
-            Letters: letters.filter((l) => isSameDay(l.createdAt)).length,
-            Quizzes: quizzes.filter((q) => isSameDay(q.createdAt)).length,
-          });
-        }
-        return data;
-      };
-
-      // ==========================================
-      // SET STATS
-      // ==========================================
-      setStats({
-        totalLetters: letters.length,
-        totalQuizzes: quizzes.length,
-        totalQuestions,
-        todayLetters,
-        todayQuizzes,
-        recentQuizzes,
-        chartData: generateChartData(),
+      setRawData({
+        letters: Array.isArray(lettersRes.data) ? lettersRes.data : lettersRes.data?.letters || [],
+        quizzes: Array.isArray(quizzesRes.data) ? quizzesRes.data : quizzesRes.data?.quizzes || [],
+        scores: Array.isArray(scoresRes.data) ? scoresRes.data : scoresRes.data?.scores || [],
       });
     } catch (error) {
-      console.error("Dashboard Error:", error);
+      console.error("Dashboard Fetch Error:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // ==========================================
+  // PROCESS DATA WHEN FILTER CHANGES
+  // ==========================================
+  useEffect(() => {
+    if (loading) return;
+
+    const now = new Date();
+    let startDate = new Date(0); // Default to beginning of time
+    let endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    // Determine Start Date based on filter
+    if (dateFilter === "today") {
+      startDate = new Date(now.setHours(0, 0, 0, 0));
+    } else if (dateFilter === "7d") {
+      startDate = new Date(now.setDate(now.getDate() - 7));
+      startDate.setHours(0, 0, 0, 0);
+    } else if (dateFilter === "30d") {
+      startDate = new Date(now.setDate(now.getDate() - 30));
+      startDate.setHours(0, 0, 0, 0);
+    } else if (dateFilter === "custom") {
+      startDate = new Date(customDates.start);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(customDates.end);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    // Helper to check if item is in range
+    const inRange = (dateString) => {
+      if (!dateString) return false;
+      const d = new Date(dateString);
+      return d >= startDate && d <= endDate;
+    };
+
+    // Filter Arrays
+    const filteredLetters = rawData.letters.filter((l) => inRange(l.createdAt));
+    const filteredQuizzes = rawData.quizzes.filter((q) => inRange(q.createdAt));
+    const filteredScores = rawData.scores.filter((s) => inRange(s.createdAt));
+
+    // Calculate Unique Users (Players) in this period
+    const uniqueUserNames = new Set(filteredScores.map(s => s.playerName?.toLowerCase()));
+
+    // Total Questions in filtered quizzes
+    const questionsCount = filteredQuizzes.reduce((acc, q) => acc + (q.questions?.length || 0), 0);
+
+    // Recent Quizzes for sidebar
+    const recentQuizzes = [...filteredQuizzes]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 6);
+
+    // Build Chart Data (Group by Day)
+    // To ensure continuous lines, we create an array of days from start to end
+    const chartData = [];
+    let loopDate = new Date(startDate);
+    
+    // Safety check: if "all time", limit chart to the oldest item's date or max 90 days to avoid freezing
+    if (dateFilter === "all") {
+      const allDates = [...rawData.letters, ...rawData.quizzes, ...rawData.scores]
+        .map(i => new Date(i.createdAt).getTime())
+        .filter(t => !isNaN(t));
+      if (allDates.length > 0) {
+        loopDate = new Date(Math.min(...allDates));
+        loopDate.setHours(0,0,0,0);
+      } else {
+        loopDate = new Date(); // fallback
+      }
+    }
+
+    while (loopDate <= endDate && chartData.length < 365) { // max 365 points for safety
+      const dateStr = loopDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      
+      const isSameDay = (dString) => {
+        const d = new Date(dString);
+        return d.getDate() === loopDate.getDate() && d.getMonth() === loopDate.getMonth() && d.getFullYear() === loopDate.getFullYear();
+      };
+
+      const dayScores = rawData.scores.filter(s => isSameDay(s.createdAt));
+      const dailyUniqueUsers = new Set(dayScores.map(s => s.playerName?.toLowerCase())).size;
+
+      chartData.push({
+        name: dateStr,
+        Letters: rawData.letters.filter(l => isSameDay(l.createdAt)).length,
+        Quizzes: rawData.quizzes.filter(q => isSameDay(q.createdAt)).length,
+        ActiveUsers: dailyUniqueUsers,
+      });
+
+      loopDate.setDate(loopDate.getDate() + 1);
+    }
+
+    // Update state
+    setDisplayStats({
+      lettersCount: filteredLetters.length,
+      quizzesCount: filteredQuizzes.length,
+      scoresCount: filteredScores.length,
+      uniqueUsers: uniqueUserNames.size,
+      questionsCount,
+      chartData,
+      recentQuizzes,
+    });
+
+  }, [rawData, dateFilter, customDates, loading]);
 
   // ==========================================
   // LOADING STATE
@@ -127,7 +179,7 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-        <p className="text-zinc-500 font-medium animate-pulse">Loading your insights...</p>
+        <p className="text-zinc-500 font-medium animate-pulse">Loading all platform data...</p>
       </div>
     );
   }
@@ -137,29 +189,68 @@ export default function DashboardPage() {
   // ==========================================
   return (
     <div className="p-4 md:p-8 space-y-8 bg-zinc-50/50 min-h-screen">
-      {/* HEADER */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">
-          Dashboard Overview
-        </h1>
-        <p className="text-zinc-500 text-lg">
-          Welcome back to the GetKnowify Admin Panel. Here is what is happening today.
-        </p>
+      
+      {/* HEADER & FILTERS */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-6 rounded-3xl border shadow-sm">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">
+            Analytics Overview
+          </h1>
+          <p className="text-zinc-500">
+            Analyze your platform's performance based on specific timeframes.
+          </p>
+        </div>
+
+        {/* DATE CONTROLS */}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative w-full sm:w-auto">
+            <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-zinc-400" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full sm:w-48 appearance-none bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block pl-10 p-2.5 font-medium cursor-pointer"
+            >
+              <option value="today">Today</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="all">All Time</option>
+              <option value="custom">Custom Date Range...</option>
+            </select>
+          </div>
+
+          {dateFilter === "custom" && (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="date"
+                value={customDates.start}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+                className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl focus:ring-blue-500 block p-2.5"
+              />
+              <span className="text-zinc-400">to</span>
+              <input
+                type="date"
+                value={customDates.end}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+                className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl focus:ring-blue-500 block p-2.5"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* STATS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
-        <StatCard title="Total Letters" value={stats.totalLetters} icon={Mail} color="blue" />
-        <StatCard title="New Today" value={stats.todayLetters} icon={Sparkles} color="orange" />
-        <StatCard title="Total Quizzes" value={stats.totalQuizzes} icon={Brain} color="purple" />
-        <StatCard title="Quiz Today" value={stats.todayQuizzes} icon={Clock3} color="pink" />
-        <StatCard title="Questions" value={stats.totalQuestions} icon={FileQuestion} color="green" />
+        <StatCard title="Active Users" subtitle="Unique players" value={displayStats.uniqueUsers} icon={Users} color="orange" />
+        <StatCard title="Quizzes Created" subtitle="In selected period" value={displayStats.quizzesCount} icon={Brain} color="purple" />
+        <StatCard title="Quiz Attempts" subtitle="Total scores submitted" value={displayStats.scoresCount} icon={Sparkles} color="pink" />
+        <StatCard title="Letters Created" subtitle="In selected period" value={displayStats.lettersCount} icon={Mail} color="blue" />
+        <StatCard title="Total Questions" subtitle="Across quizzes" value={displayStats.questionsCount} icon={FileQuestion} color="green" />
       </div>
 
       {/* MAIN CONTENT SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* CHART SECTION (Takes 2 columns) */}
+        {/* CHART SECTION */}
         <Card className="col-span-1 lg:col-span-2 rounded-3xl border-0 shadow-md bg-white">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -167,16 +258,20 @@ export default function DashboardPage() {
                 <Activity className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
-                <CardTitle className="text-xl">Activity Over Time</CardTitle>
-                <CardDescription>Letters and Quizzes created in the last 7 days</CardDescription>
+                <CardTitle className="text-xl">Platform Growth & Activity</CardTitle>
+                <CardDescription>Visualizing user visits (active players) vs content creation</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[350px] w-full mt-4">
+            <div className="h-[400px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={displayStats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
+                    <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                    </linearGradient>
                     <linearGradient id="colorQuizzes" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#9333ea" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#9333ea" stopOpacity={0} />
@@ -186,44 +281,46 @@ export default function DashboardPage() {
                       <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} minTickGap={20} />
                   <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
                   <Tooltip
-                    contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                    contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
                   />
-                  <Area type="monotone" dataKey="Quizzes" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorQuizzes)" />
-                  <Area type="monotone" dataKey="Letters" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorLetters)" />
+                  <Legend verticalAlign="top" height={36}/>
+                  <Area type="monotone" name="Active Users/Visitors" dataKey="ActiveUsers" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
+                  <Area type="monotone" name="Quizzes Created" dataKey="Quizzes" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorQuizzes)" />
+                  <Area type="monotone" name="Letters Created" dataKey="Letters" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorLetters)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* RECENT QUIZZES SECTION (Takes 1 column) */}
+        {/* RECENT QUIZZES SECTION */}
         <Card className="col-span-1 rounded-3xl border-0 shadow-md bg-white flex flex-col">
           <CardHeader>
-            <CardTitle className="text-xl">Recent Quizzes</CardTitle>
-            <CardDescription>Latest activity from your creators</CardDescription>
+            <CardTitle className="text-xl">Filtered Quizzes</CardTitle>
+            <CardDescription>Recently created in this period</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1">
+          <CardContent className="flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
             <div className="space-y-4">
-              {stats.recentQuizzes.length > 0 ? (
-                stats.recentQuizzes.map((quiz) => (
+              {displayStats.recentQuizzes.length > 0 ? (
+                displayStats.recentQuizzes.map((quiz) => (
                   <div
                     key={quiz._id}
-                    className="group flex flex-col gap-1 border border-zinc-100 rounded-2xl p-4 hover:border-zinc-200 hover:shadow-sm hover:bg-zinc-50 transition-all"
+                    className="group flex flex-col gap-1 border border-zinc-100 rounded-2xl p-4 hover:border-blue-100 hover:shadow-sm hover:bg-blue-50/50 transition-all cursor-default"
                   >
                     <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-zinc-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                      <h3 className="font-semibold text-zinc-900 group-hover:text-blue-700 transition-colors line-clamp-1">
                         {quiz.quizTitle || "Untitled Quiz"}
                       </h3>
                     </div>
                     <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-zinc-500 font-medium">
+                      <span className="text-zinc-500 font-medium text-xs">
                         by {quiz.creatorName || "Unknown"}
                       </span>
-                      <span className="text-zinc-400 text-xs bg-zinc-100 px-2 py-1 rounded-md">
+                      <span className="text-zinc-400 text-[10px] uppercase font-bold tracking-wider bg-zinc-100 px-2 py-1 rounded-md">
                         {new Date(quiz.createdAt).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -233,8 +330,8 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center p-8 text-zinc-500 bg-zinc-50 rounded-2xl border border-dashed">
-                  No recent quizzes found.
+                <div className="text-center p-8 text-zinc-400 bg-zinc-50/50 rounded-2xl border border-dashed border-zinc-200">
+                  No quizzes found for this date range.
                 </div>
               )}
             </div>
@@ -249,26 +346,27 @@ export default function DashboardPage() {
 // ==========================================
 // REUSABLE STAT CARD COMPONENT
 // ==========================================
-function StatCard({ title, value, icon: Icon, color }) {
+function StatCard({ title, subtitle, value, icon: Icon, color }) {
   const colorMap = {
-    blue: "bg-blue-100 text-blue-600",
-    orange: "bg-orange-100 text-orange-600",
-    purple: "bg-purple-100 text-purple-600",
-    pink: "bg-pink-100 text-pink-600",
-    green: "bg-green-100 text-green-600",
+    blue: "bg-blue-50 text-blue-600",
+    orange: "bg-orange-50 text-orange-600",
+    purple: "bg-purple-50 text-purple-600",
+    pink: "bg-pink-50 text-pink-600",
+    green: "bg-green-50 text-green-600",
   };
 
   return (
     <Card className="rounded-3xl border-0 shadow-md bg-white hover:-translate-y-1 transition-transform duration-300">
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-zinc-500">{title}</p>
-            <h2 className="text-3xl font-extrabold mt-2 text-zinc-900">
+            <p className="text-sm font-bold text-zinc-500">{title}</p>
+            <p className="text-[11px] text-zinc-400 mb-2">{subtitle}</p>
+            <h2 className="text-4xl font-black tracking-tight text-zinc-900">
               {value.toLocaleString()}
             </h2>
           </div>
-          <div className={`p-4 rounded-2xl ${colorMap[color]}`}>
+          <div className={`p-3 rounded-2xl ${colorMap[color]}`}>
             <Icon size={24} strokeWidth={2.5} />
           </div>
         </div>
