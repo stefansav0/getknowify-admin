@@ -4,15 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { ArrowLeft, Save, Loader2, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CheckCircle, Search } from "lucide-react";
 
 export default function CreateBlogPage() {
   const router = useRouter();
 
-  // Form State
+  // Form State - Now includes SEO & Meta fields
   const [formData, setFormData] = useState({
     title: "",
+    slug: "",
     author: "",
+    category: "",
+    keywords: "",
+    metaDescription: "",
     status: "draft",
     coverImage: "",
     content: "",
@@ -26,7 +30,17 @@ export default function CreateBlogPage() {
   // Handle Input Changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+      const updatedData = { ...prev, [name]: value };
+      
+      // Auto-generate slug from title if title is being typed and slug is empty or matches previous title
+      if (name === "title" && (!prev.slug || prev.slug === prev.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''))) {
+        updatedData.slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      }
+      
+      return updatedData;
+    });
   };
 
   // Submit Form to Backend
@@ -36,7 +50,7 @@ export default function CreateBlogPage() {
     setError("");
 
     try {
-      // Use relative path for best compatibility with local/prod environments
+      // Send the enriched formData containing SEO meta fields
       const response = await axios.post("https://www.getknowify.com/api/blogs", formData);
 
       if (response.data.success) {
@@ -72,7 +86,7 @@ export default function CreateBlogPage() {
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900">
               Create New Post
             </h1>
-            <p className="text-zinc-500 mt-1">Draft and publish a new article for your readers.</p>
+            <p className="text-zinc-500 mt-1">Draft and publish a heavily optimized article.</p>
           </div>
         </div>
       </div>
@@ -93,90 +107,172 @@ export default function CreateBlogPage() {
 
       {/* FORM CONTAINER */}
       <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-xl shadow-zinc-200/50 p-6 md:p-10">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-10">
           
-          {/* TITLE */}
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-zinc-700 ml-1">Post Title *</label>
-            <input 
-              type="text" 
-              name="title"
-              required
-              disabled={success}
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="e.g., 10 Viral Quiz Ideas for 2026" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all text-lg font-medium" 
-            />
+          {/* --- SECTION 1: CORE DETAILS --- */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-black text-zinc-800 border-b border-zinc-100 pb-2">Core Information</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* TITLE */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Post Title *</label>
+                <input 
+                  type="text" 
+                  name="title"
+                  required
+                  disabled={success}
+                  value={formData.title}
+                  onChange={handleChange}
+                  placeholder="e.g., How to Reconnect With an Old Friend You Haven't Spoken to in Years" 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all text-lg font-medium" 
+                />
+              </div>
+
+              {/* SLUG */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">URL Slug *</label>
+                <input 
+                  type="text" 
+                  name="slug"
+                  required
+                  disabled={success}
+                  value={formData.slug}
+                  onChange={handleChange}
+                  placeholder="e.g., how-to-reconnect-with-an-old-friend" 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm" 
+                />
+              </div>
+
+              {/* CATEGORY */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Category *</label>
+                <input 
+                  type="text" 
+                  name="category"
+                  required
+                  disabled={success}
+                  value={formData.category}
+                  onChange={handleChange}
+                  placeholder="e.g., Friendship Psychology" 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
+                />
+              </div>
+
+              {/* AUTHOR */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Author Name *</label>
+                <input 
+                  type="text" 
+                  name="author"
+                  required
+                  disabled={success}
+                  value={formData.author}
+                  onChange={handleChange}
+                  placeholder="Your Name" 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
+                />
+              </div>
+
+              {/* STATUS */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Visibility Status</label>
+                <select 
+                  name="status"
+                  disabled={success}
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="draft">Draft (Hidden from Public)</option>
+                  <option value="published">Published (Live on Website)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* AUTHOR */}
+          {/* --- SECTION 2: SEO & METADATA --- */}
+          <div className="space-y-6 bg-blue-50/50 p-6 rounded-3xl border border-blue-100">
+            <div className="flex items-center gap-2 border-b border-blue-200 pb-2">
+              <Search size={18} className="text-blue-600" />
+              <h2 className="text-lg font-black text-blue-900">SEO & Discovery</h2>
+            </div>
+            
+            {/* KEYWORDS */}
             <div className="space-y-2">
-              <label className="text-sm font-bold text-zinc-700 ml-1">Author Name *</label>
+              <label className="text-sm font-bold text-zinc-700 ml-1">Focus Keywords</label>
               <input 
                 type="text" 
-                name="author"
-                required
+                name="keywords"
                 disabled={success}
-                value={formData.author}
+                value={formData.keywords}
                 onChange={handleChange}
-                placeholder="Your Name" 
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
+                placeholder="e.g., reconnecting with old friends, how to reach out, friendship fade (comma separated)" 
+                className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
               />
             </div>
 
-            {/* STATUS */}
+            {/* META DESCRIPTION */}
             <div className="space-y-2">
-              <label className="text-sm font-bold text-zinc-700 ml-1">Visibility Status</label>
-              <select 
-                name="status"
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-bold text-zinc-700">Meta Description *</label>
+                <span className={`text-xs font-bold ${formData.metaDescription.length > 160 ? 'text-red-500' : 'text-zinc-400'}`}>
+                  {formData.metaDescription.length} / 160 chars
+                </span>
+              </div>
+              <textarea 
+                rows="3" 
+                name="metaDescription"
+                required
                 disabled={success}
-                value={formData.status}
+                value={formData.metaDescription}
                 onChange={handleChange}
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all appearance-none cursor-pointer"
-              >
-                <option value="draft">Draft (Hidden from Public)</option>
-                <option value="published">Published (Live on Website)</option>
-              </select>
+                placeholder="Thinking about an old friend you haven't spoken to in years? Overcome the awkwardness and learn exactly how to reach out..." 
+                className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
-          {/* COVER IMAGE */}
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-zinc-700 ml-1">Cover Image URL</label>
-            <input 
-              type="url" 
-              name="coverImage"
-              disabled={success}
-              value={formData.coverImage}
-              onChange={handleChange}
-              placeholder="https://images.unsplash.com/your-image-link" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm" 
-            />
-          </div>
+          {/* --- SECTION 3: MEDIA & CONTENT --- */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-black text-zinc-800 border-b border-zinc-100 pb-2">Article Content</h2>
 
-          {/* CONTENT */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <label className="text-sm font-bold text-zinc-700">HTML Content *</label>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md font-bold">
-                Rich Text / HTML Support
-              </span>
+            {/* COVER IMAGE */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-zinc-700 ml-1">Cover Image URL</label>
+              <input 
+                type="url" 
+                name="coverImage"
+                disabled={success}
+                value={formData.coverImage}
+                onChange={handleChange}
+                placeholder="https://images.unsplash.com/your-image-link" 
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm" 
+              />
             </div>
-            <textarea 
-              rows="15" 
-              name="content"
-              required
-              disabled={success}
-              value={formData.content}
-              onChange={handleChange}
-              placeholder="<h1>Start Writing...</h1><p>Your amazing content goes here.</p>" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-[2rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-6 outline-none transition-all font-mono text-sm custom-scrollbar leading-relaxed"
-            ></textarea>
+
+            {/* CONTENT */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-sm font-bold text-zinc-700">HTML Content *</label>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md font-bold">
+                  Rich Text / HTML Support
+                </span>
+              </div>
+              <textarea 
+                rows="15" 
+                name="content"
+                required
+                disabled={success}
+                value={formData.content}
+                onChange={handleChange}
+                placeholder="<h1>Start Writing...</h1><p>Your amazing content goes here.</p>" 
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-[2rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-6 outline-none transition-all font-mono text-sm custom-scrollbar leading-relaxed"
+              ></textarea>
+            </div>
           </div>
 
-          {/* ACTIONS */}
+          {/* --- ACTIONS --- */}
           <div className="flex items-center justify-end gap-6 pt-6 border-t border-zinc-100">
             <Link 
               href="/blogs" 

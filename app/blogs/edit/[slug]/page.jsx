@@ -1,256 +1,347 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import axios from "axios";
-import { ArrowLeft, Save, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CheckCircle, Search, AlertTriangle } from "lucide-react";
 
-export default function EditBlogPage({ params }) {
+export default function EditBlogPage() {
   const router = useRouter();
-  
-  // Unwrap the params to get the SLUG safely in Next.js 14/15
-  const { slug } = use(params);
+  const params = useParams(); // Grabs the dynamic [slug] from the URL
+  const originalSlug = params?.slug;
 
-  // ==========================================
-  // STATE MANAGEMENT
-  // ==========================================
+  // Form State
   const [formData, setFormData] = useState({
     title: "",
+    slug: "",
     author: "",
+    category: "",
+    keywords: "",
+    metaDescription: "",
     status: "draft",
     coverImage: "",
     content: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // UI States
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  // ==========================================
-  // FETCH DATA ON MOUNT
-  // ==========================================
+  // 🚀 FETCH EXISTING POST DATA ON MOUNT
   useEffect(() => {
-    fetchBlogData();
-  }, [slug]);
-
-  const fetchBlogData = async () => {
-    try {
-      setIsLoading(true);
-      // Use relative path for Axios in client components
-      const response = await axios.get(`https://www.getknowify.com/api/blogs/${slug}`);
-      
-      if (response.data.success) {
-        const blog = response.data.blog;
-        setFormData({
-          title: blog.title || "",
-          author: blog.author || "",
-          status: blog.status || "draft",
-          coverImage: blog.coverImage || "",
-          content: blog.content || "",
-        });
-      } else {
-        setError("Blog post not found.");
+    const fetchBlogData = async () => {
+      try {
+        // Fetch via your dynamic GET route
+        const response = await axios.get(`/api/blogs/${originalSlug}`);
+        
+        if (response.data.success) {
+          const blog = response.data.blog;
+          // Pre-fill the form with existing database values
+          setFormData({
+            title: blog.title || "",
+            slug: blog.slug || "",
+            author: blog.author || "",
+            category: blog.category || "",
+            keywords: blog.keywords || "",
+            metaDescription: blog.metaDescription || "",
+            status: blog.status || "draft",
+            coverImage: blog.coverImage || "",
+            content: blog.content || "",
+          });
+        } else {
+          setError("Failed to load blog data.");
+        }
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        setError("Article not found or server error.");
+      } finally {
+        setInitialLoading(false);
       }
-    } catch (err) {
-      console.error("Fetch Error:", err);
-      setError("Failed to load blog data. It may have been deleted.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  // ==========================================
-  // HANDLERS
-  // ==========================================
+    if (originalSlug) {
+      fetchBlogData();
+    }
+  }, [originalSlug]);
+
+  // Handle Input Changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleUpdate = async (e) => {
+  // Submit Form to Backend (PUT Request)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    setSaving(true);
     setError("");
 
     try {
-      const response = await axios.put(`https://www.getknowify.com/api/blogs/${slug}`, formData);
+      // Send the updated data to your dynamic PUT route
+      const response = await axios.put(`/api/blogs/${originalSlug}`, formData);
+
       if (response.data.success) {
-        // Redirect back to admin list on success
-        router.push("/blogs"); 
+        setSuccess(true);
+        // Short delay so the user sees the success state before redirecting
+        setTimeout(() => {
+          router.push("/blogs"); // or /dashboard/blogs depending on your routing
+        }, 1500);
       } else {
         setError(response.data.error || "Failed to update blog post.");
+        setSaving(false);
       }
     } catch (err) {
-      console.error("Update Error:", err);
-      setError("An unexpected error occurred while saving.");
-    } finally {
-      setIsSaving(false);
+      console.error("Save Error:", err);
+      // Handles the Duplicate Slug error we built into the backend!
+      setError(err.response?.data?.error || "An unexpected error occurred. Please try again.");
+      setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    const confirmDelete = window.confirm("Are you sure you want to permanently delete this post? This cannot be undone.");
-    if (!confirmDelete) return;
-
-    setIsDeleting(true);
-    try {
-      const response = await axios.delete(`https://www.getknowify.com/api/blogs/${slug}`);
-      if (response.data.success) {
-        router.push("/blogs");
-      } else {
-        setError(response.data.error || "Failed to delete blog post.");
-        setIsDeleting(false);
-      }
-    } catch (err) {
-      console.error("Delete Error:", err);
-      setError("An unexpected error occurred while deleting.");
-      setIsDeleting(false);
-    }
-  };
-
-  // ==========================================
-  // LOADING UI
-  // ==========================================
-  if (isLoading) {
+  // ⏳ INITIAL LOADING STATE UI
+  if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-        <p className="text-zinc-500 font-medium animate-pulse">Loading post data...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center text-zinc-500 bg-zinc-50">
+        <Loader2 size={40} className="animate-spin mb-4 text-emerald-500" />
+        <p className="font-bold tracking-wide">Loading article data...</p>
       </div>
     );
   }
 
-  // ==========================================
-  // MAIN UI
-  // ==========================================
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto font-sans">
       
       {/* HEADER WITH BACK BUTTON */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <Link href="/blogs" className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors">
+          <Link 
+            href="/dashboard/blogs" // Update this link to match your dashboard URL
+            className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors shadow-sm"
+          >
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Edit Post</h1>
-            <p className="text-zinc-500 mt-1 text-sm font-mono truncate max-w-[200px] sm:max-w-xs">
-              Slug: {slug}
-            </p>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900">
+              Edit Post
+            </h1>
+            <p className="text-zinc-500 mt-1">Make changes to your existing article.</p>
           </div>
         </div>
-        
-        {/* DELETE BUTTON */}
-        <button 
-          type="button"
-          onClick={handleDelete}
-          disabled={isDeleting || isSaving}
-          className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-xl font-medium transition-colors border border-red-100 w-fit"
-        >
-          {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-          {isDeleting ? "Deleting..." : "Delete Post"}
-        </button>
       </div>
 
-      {/* ERROR MESSAGE DISPLAY */}
+      {/* FEEDBACK MESSAGES */}
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-medium flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError("")} className="text-red-400 hover:text-red-800">×</button>
+        <div className="bg-red-50 text-red-600 p-4 rounded-2xl border border-red-100 font-medium animate-in fade-in slide-in-from-top-2">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-emerald-50 text-emerald-700 p-4 rounded-2xl border border-emerald-100 font-medium flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle size={20} />
+          Post updated successfully! Redirecting...
         </div>
       )}
 
       {/* FORM CONTAINER */}
-      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 md:p-8">
-        <form onSubmit={handleUpdate} className="space-y-6">
+      <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-xl shadow-zinc-200/50 p-6 md:p-10">
+        <form onSubmit={handleSubmit} className="space-y-10">
           
-          <div>
-            <label className="block text-sm font-semibold text-zinc-700 mb-2">Post Title *</label>
-            <input 
-              type="text" 
-              name="title"
-              required
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="Enter post title" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none transition-all" 
-            />
+          {/* --- SECTION 1: CORE DETAILS --- */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-black text-zinc-800 border-b border-zinc-100 pb-2">Core Information</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* TITLE */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Post Title *</label>
+                <input 
+                  type="text" 
+                  name="title"
+                  required
+                  disabled={success || saving}
+                  value={formData.title}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all text-lg font-medium" 
+                />
+              </div>
+
+              {/* SLUG */}
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between ml-1">
+                   <label className="text-sm font-bold text-zinc-700">URL Slug *</label>
+                   <span className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                     <AlertTriangle size={12} /> Changing this might break SEO links
+                   </span>
+                </div>
+                <input 
+                  type="text" 
+                  name="slug"
+                  required
+                  disabled={success || saving}
+                  value={formData.slug}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm" 
+                />
+              </div>
+
+              {/* CATEGORY */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Category *</label>
+                <input 
+                  type="text" 
+                  name="category"
+                  required
+                  disabled={success || saving}
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
+                />
+              </div>
+
+              {/* AUTHOR */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Author Name *</label>
+                <input 
+                  type="text" 
+                  name="author"
+                  required
+                  disabled={success || saving}
+                  value={formData.author}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
+                />
+              </div>
+
+              {/* STATUS */}
+              <div className="space-y-2 md:col-span-2 lg:col-span-1">
+                <label className="text-sm font-bold text-zinc-700 ml-1">Visibility Status</label>
+                <select 
+                  name="status"
+                  disabled={success || saving}
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="draft">Draft (Hidden from Public)</option>
+                  <option value="published">Published (Live on Website)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-2">Author Name *</label>
+          {/* --- SECTION 2: SEO & METADATA --- */}
+          <div className="space-y-6 bg-blue-50/50 p-6 rounded-3xl border border-blue-100">
+            <div className="flex items-center gap-2 border-b border-blue-200 pb-2">
+              <Search size={18} className="text-blue-600" />
+              <h2 className="text-lg font-black text-blue-900">SEO & Discovery</h2>
+            </div>
+            
+            {/* KEYWORDS */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-zinc-700 ml-1">Focus Keywords</label>
               <input 
                 type="text" 
-                name="author"
-                required
-                value={formData.author}
+                name="keywords"
+                disabled={success || saving}
+                value={formData.keywords}
                 onChange={handleChange}
-                placeholder="Author Name" 
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none transition-all" 
+                placeholder="e.g., reconnecting with old friends, how to reach out (comma separated)" 
+                className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all" 
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-2">Status</label>
-              <select 
-                name="status"
-                value={formData.status}
+            {/* META DESCRIPTION */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-bold text-zinc-700">Meta Description *</label>
+                <span className={`text-xs font-bold ${formData.metaDescription?.length > 160 ? 'text-red-500' : 'text-zinc-400'}`}>
+                  {formData.metaDescription?.length || 0} / 160 chars
+                </span>
+              </div>
+              <textarea 
+                rows="3" 
+                name="metaDescription"
+                required
+                disabled={success || saving}
+                value={formData.metaDescription}
                 onChange={handleChange}
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none transition-all appearance-none cursor-pointer"
-              >
-                <option value="draft">Draft (Hidden)</option>
-                <option value="published">Published (Live)</option>
-              </select>
+                className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-zinc-700 mb-2">Cover Image URL</label>
-            <input 
-              type="url" 
-              name="coverImage"
-              value={formData.coverImage}
-              onChange={handleChange}
-              placeholder="https://example.com/image.jpg" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none transition-all font-mono text-sm" 
-            />
-          </div>
+          {/* --- SECTION 3: MEDIA & CONTENT --- */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-black text-zinc-800 border-b border-zinc-100 pb-2">Article Content</h2>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-semibold text-zinc-700">HTML Content *</label>
-              <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md font-mono">Accepts HTML / Markdown</span>
+            {/* COVER IMAGE */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-zinc-700 ml-1">Cover Image URL</label>
+              <input 
+                type="url" 
+                name="coverImage"
+                disabled={success || saving}
+                value={formData.coverImage}
+                onChange={handleChange}
+                placeholder="https://images.unsplash.com/your-image-link" 
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm" 
+              />
             </div>
-            <textarea 
-              rows="15" 
-              name="content"
-              required
-              value={formData.content}
-              onChange={handleChange}
-              placeholder="<h1>Main Heading</h1><p>Start writing your blog post here...</p>" 
-              className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-4 outline-none transition-all font-mono text-sm custom-scrollbar"
-            ></textarea>
+
+            {/* CONTENT */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-sm font-bold text-zinc-700">HTML Content *</label>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md font-bold">
+                  Rich Text / HTML Support
+                </span>
+              </div>
+              <textarea 
+                rows="15" 
+                name="content"
+                required
+                disabled={success || saving}
+                value={formData.content}
+                onChange={handleChange}
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 rounded-[2rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block p-6 outline-none transition-all font-mono text-sm custom-scrollbar leading-relaxed"
+              ></textarea>
+            </div>
           </div>
 
-          {/* ACTION BUTTONS */}
-          <div className="flex items-center justify-end gap-4 pt-4 border-t border-zinc-100">
+          {/* --- ACTIONS --- */}
+          <div className="flex items-center justify-end gap-6 pt-6 border-t border-zinc-100">
             <Link 
-              href="/dashboard/blogs" 
-              className="px-6 py-3 text-zinc-600 font-medium hover:bg-zinc-100 rounded-xl transition-colors"
+              href="/blogs" 
+              className="text-zinc-500 font-bold hover:text-zinc-800 transition-colors px-4"
             >
               Cancel
             </Link>
             
             <button 
               type="submit" 
-              disabled={isSaving || isDeleting}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-medium transition-colors shadow-sm"
+              disabled={saving || success}
+              className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
             >
-              {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-              {isSaving ? "Updating..." : "Update Post"}
+              {saving ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Updating...
+                </>
+              ) : success ? (
+                <>
+                  <CheckCircle size={20} />
+                  Done!
+                </>
+              ) : (
+                <>
+                  <Save size={20} />
+                  Update Post
+                </>
+              )}
             </button>
           </div>
 
