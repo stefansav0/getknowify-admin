@@ -26,9 +26,8 @@ export default async function AdminFeedbackDashboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
-                <th className="p-5 font-bold">Status</th>
-                <th className="p-5 font-bold">Type</th>
                 <th className="p-5 font-bold">User</th>
+                <th className="p-5 font-bold">Rating</th>
                 <th className="p-5 font-bold">Message</th>
                 <th className="p-5 font-bold">Date</th>
               </tr>
@@ -36,29 +35,39 @@ export default async function AdminFeedbackDashboard() {
             <tbody className="divide-y divide-slate-100">
               {feedbacks.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-500 font-medium">No feedback received yet.</td>
+                  <td colSpan="4" className="p-8 text-center text-slate-500 font-medium">No feedback received yet.</td>
                 </tr>
               ) : (
                 feedbacks.map((item) => (
                   <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
+                    
+                    {/* USER NAME */}
                     <td className="p-5">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                        item.status === 'new' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {item.status}
-                      </span>
+                      <p className="font-bold text-slate-900">{item.name || "Anonymous"}</p>
                     </td>
-                    <td className="p-5 font-bold text-slate-700 capitalize">{item.type}</td>
+
+                    {/* RATING */}
                     <td className="p-5">
-                      <p className="font-bold text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">{item.email || "No email provided"}</p>
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-slate-700">{item.rating || "-"}</span>
+                        {item.rating && <span className="text-amber-400 text-lg">★</span>}
+                      </div>
                     </td>
-                    <td className="p-5 max-w-md">
-                      <p className="text-slate-600 line-clamp-2">{item.message}</p>
+
+                    {/* MESSAGE */}
+                    <td className="p-5 max-w-lg">
+                      <p className="text-slate-600 leading-relaxed">{item.message}</p>
                     </td>
+
+                    {/* DATE */}
                     <td className="p-5 text-sm font-medium text-slate-500 whitespace-nowrap">
-                      {new Date(item.createdAt).toLocaleDateString()}
+                      {new Date(item.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })}
                     </td>
+
                   </tr>
                 ))
               )}
