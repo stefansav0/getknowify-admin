@@ -37,6 +37,11 @@ const menuItems = [
     icon: MessageCircle,
     href: "/blogs",
   },
+  {
+    name: "Feedback",
+    icon: MessageCircle,
+    href: "/feedback",
+  },
 ];
 
 export default function Sidebar() {
