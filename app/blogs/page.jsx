@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import axios from "axios";
-import { Edit, Trash2, Plus, Loader2, FileText } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Loader2,
+  FileText,
+  Eye,
+} from "lucide-react";
 
 export default function BlogsListPage() {
   const [blogs, setBlogs] = useState([]);
@@ -92,6 +99,7 @@ export default function BlogsListPage() {
                 <th className="px-8 py-5 font-bold">Article Details</th>
                 <th className="px-6 py-5 font-bold">Author</th>
                 <th className="px-6 py-5 font-bold">Status</th>
+                <th className="px-6 py-5 font-bold">Views</th>
                 <th className="px-6 py-5 font-bold text-right tracking-widest">Actions</th>
               </tr>
             </thead>
@@ -163,7 +171,11 @@ export default function BlogsListPage() {
 
                   <td className="px-8 py-6 text-right">
                     <div className="flex items-center justify-end gap-3">
-                      
+                      <div className="flex items-center gap-2 text-zinc-400">
+                        <Eye size={16} />
+                        <span className="text-sm font-bold">{blog.views || 0}</span>
+                      </div>
+
                       {/* EDIT BY SLUG */}
                       <Link 
                         href={`/blogs/edit/${blog.slug}`} 
