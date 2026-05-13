@@ -77,7 +77,7 @@ export default function CreateBlogPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link 
-            href="/dashboard/blogs" 
+            href="/blogs" 
             className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors shadow-sm"
           >
             <ArrowLeft size={20} />

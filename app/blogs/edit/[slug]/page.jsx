@@ -35,7 +35,7 @@ export default function EditBlogPage() {
     const fetchBlogData = async () => {
       try {
         // Fetch via your dynamic GET route
-        const response = await axios.get(`/api/blogs/${originalSlug}`);
+        const response = await axios.get(`https://www.getknowify.com/api/blogs/${originalSlug}`);
         
         if (response.data.success) {
           const blog = response.data.blog;
@@ -118,7 +118,7 @@ export default function EditBlogPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link 
-            href="/dashboard/blogs" // Update this link to match your dashboard URL
+            href="/blogs" // Update this link to match your dashboard URL
             className="p-2 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 text-zinc-600 transition-colors shadow-sm"
           >
             <ArrowLeft size={20} />
@@ -258,8 +258,8 @@ export default function EditBlogPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-bold text-zinc-700">Meta Description *</label>
-                <span className={`text-xs font-bold ${formData.metaDescription?.length > 160 ? 'text-red-500' : 'text-zinc-400'}`}>
-                  {formData.metaDescription?.length || 0} / 160 chars
+                <span className={`text-xs font-bold ${formData.metaDescription?.length > 200 ? 'text-red-500' : 'text-zinc-400'}`}>
+                  {formData.metaDescription?.length || 0} / 200 chars
                 </span>
               </div>
               <textarea 
