@@ -81,7 +81,7 @@ export default function EditBlogPage() {
 
     try {
       // Send the updated data to your dynamic PUT route
-      const response = await axios.put(`/api/blogs/${originalSlug}`, formData);
+      const response = await axios.put(`https://www.getknowify.com/api/blogs/${originalSlug}`, formData);
 
       if (response.data.success) {
         setSuccess(true);
