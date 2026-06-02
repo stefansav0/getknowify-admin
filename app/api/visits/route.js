@@ -2,18 +2,16 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    // This is the URL of your deployed separate backend server
-    const BACKEND_URL = process.env.BACKEND_API_URL || "https://www.getknowify.com/"; // Change port if testing locally
+    // Point this DIRECTLY to your live deployed backend
+    // Notice: NO trailing slash after .com
+    const BACKEND_URL = process.env.BACKEND_API_URL || "https://getknowify.com"; 
 
-    // Server-to-Server fetch (Bypasses browser CORS rules)
-    const response = await fetch(`${BACKEND_URL}/api/visits`, {
+    // This will fetch from: https://getknowify.com/api/visits
+    const response = await fetch(`${BACKEND_URL}/api/visit`, {
       method: "GET",
-      // Important: Add cache: 'no-store' so Next.js doesn't freeze old data
       cache: "no-store", 
       headers: {
         "Content-Type": "application/json",
-        // You can add a secret API key here later to secure your backend!
-        // "x-api-key": process.env.SECRET_ADMIN_KEY 
       },
     });
 
