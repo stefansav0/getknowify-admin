@@ -16,7 +16,6 @@ import {
 } from "recharts";
 
 export default function DashboardPage() {
-  // 1. RAW DATA STATE
   const [rawData, setRawData] = useState({
     letters: [],
     quizzes: [],
@@ -24,7 +23,6 @@ export default function DashboardPage() {
     visits: [], 
   });
 
-  // 2. UI & FILTER STATE
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState("today");
   const [customDates, setCustomDates] = useState({
@@ -32,7 +30,6 @@ export default function DashboardPage() {
     end: new Date().toISOString().split('T')[0],
   });
 
-  // 3. CALCULATED DISPLAY STATE
   const [displayStats, setDisplayStats] = useState({
     visitorsCount: 0,
     lettersCount: 0,
@@ -43,12 +40,9 @@ export default function DashboardPage() {
     chartData: [],
     recentQuizzes: [],
     topCountries: [],
-    topPages: [], // Added for page view & time data
+    topPages: [], 
   });
 
-  // ==========================================
-  // INITIAL FETCH
-  // ==========================================
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -76,9 +70,6 @@ export default function DashboardPage() {
     }
   };
 
-  // ==========================================
-  // PROCESS DATA WHEN FILTER CHANGES
-  // ==========================================
   useEffect(() => {
     if (loading) return;
 
@@ -118,9 +109,9 @@ export default function DashboardPage() {
 
     const uniqueUserNames = new Set(filteredScores.map(s => s.playerName?.toLowerCase()));
 
-    const visitorsCount = filteredVisits.length > 0 
-      ? filteredVisits.length 
-      : Math.floor(uniqueUserNames.size * 3.5) + filteredQuizzes.length; 
+    // --- REAL VISITORS COUNT ---
+    // Sum up the visitors from GA4 (since data is grouped by hour/page)
+    const visitorsCount = filteredVisits.reduce((acc, v) => acc + (v.visitors || 0), 0);
 
     const questionsCount = filteredQuizzes.reduce((acc, q) => acc + (q.questions?.length || 0), 0);
 
@@ -128,69 +119,48 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5);
 
-    // --- COUNTRY DATA AGGREGATION ---
+    // --- REAL COUNTRY DATA AGGREGATION ---
     const countryMap = {};
     filteredVisits.forEach(v => {
       const country = v.country || "Unknown";
-      countryMap[country] = (countryMap[country] || 0) + 1;
+      // Add the visitor count, not just 1
+      countryMap[country] = (countryMap[country] || 0) + (v.visitors || 0);
     });
 
-    let topCountries = Object.entries(countryMap)
+    const topCountries = Object.entries(countryMap)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    if (topCountries.length === 0 || (topCountries.length === 1 && topCountries[0].name === "Unknown")) {
-      const total = visitorsCount || 10;
-      topCountries = [
-        { name: "India", count: Math.floor(total * 0.45) },
-        { name: "United States", count: Math.floor(total * 0.25) },
-        { name: "United Kingdom", count: Math.floor(total * 0.15) },
-        { name: "Canada", count: Math.floor(total * 0.10) },
-        { name: "Australia", count: total - Math.floor(total * 0.45) - Math.floor(total * 0.25) - Math.floor(total * 0.15) - Math.floor(total * 0.10) }
-      ].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
-    }
-
-    // --- PAGE VIEWS & TIME AGGREGATION ---
+    // --- REAL PAGE VIEWS & TIME AGGREGATION ---
     const pageMap = {};
     filteredVisits.forEach(v => {
       const page = v.pagePath || "Unknown";
-      // Assuming backend returns timeSpent in seconds
+      const views = v.pageViews || 0;
       const time = v.timeSpent || 0; 
       
       if (!pageMap[page]) pageMap[page] = { views: 0, totalTime: 0 };
-      pageMap[page].views += 1;
-      pageMap[page].totalTime += time;
+      
+      pageMap[page].views += views;
+      // Multiply avg time by views to get total time for this row, then sum it
+      pageMap[page].totalTime += (time * views);
     });
 
-    // Helper to format seconds to "Mm Sss"
     const formatTime = (seconds) => {
-      if (isNaN(seconds) || seconds === 0) return "0m 00s";
+      if (isNaN(seconds) || !isFinite(seconds) || seconds === 0) return "0m 00s";
       const m = Math.floor(seconds / 60);
       const s = Math.floor(seconds % 60);
       return `${m}m ${s.toString().padStart(2, '0')}s`;
     };
 
-    let topPages = Object.entries(pageMap)
+    const topPages = Object.entries(pageMap)
       .map(([path, data]) => ({
         path,
         views: data.views,
-        avgTime: formatTime(data.totalTime / data.views)
+        avgTime: formatTime(data.views > 0 ? data.totalTime / data.views : 0)
       }))
       .sort((a, b) => b.views - a.views);
 
-    // Fallback logic: If real API lacks page data, simulate it
-    if (topPages.length === 0 || (topPages.length === 1 && topPages[0].path === "Unknown")) {
-      const total = visitorsCount || 10;
-      topPages = [
-        { path: "/", views: Math.floor(total * 0.5), avgTime: "1m 14s" },
-        { path: "/create", views: Math.floor(total * 0.3), avgTime: "3m 42s" },
-        { path: "/quiz/[id]", views: Math.floor(total * 0.15), avgTime: "4m 15s" },
-        { path: "/dashboard", views: Math.floor(total * 0.03), avgTime: "2m 05s" },
-        { path: "/blog", views: Math.floor(total * 0.02), avgTime: "1m 55s" }
-      ].filter(p => p.views > 0).sort((a, b) => b.views - a.views);
-    }
-
-    // --- CHART LOGIC ---
+    // --- CHART LOGIC (Real Data Only) ---
     const chartData = [];
     
     if (dateFilter === "today") {
@@ -204,13 +174,15 @@ export default function DashboardPage() {
 
         const hourScores = rawData.scores.filter(s => isSameHour(s.createdAt));
         const hourActiveUsers = new Set(hourScores.map(s => s.playerName?.toLowerCase())).size;
-        const hourVisits = rawData.visits.filter(v => isSameHour(v.createdAt)).length;
         
-        const finalHourVisits = hourVisits > 0 ? hourVisits : Math.floor(hourActiveUsers * 3.5) + (Math.random() > 0.5 ? 1 : 0);
+        // Sum visitors for this hour
+        const hourVisits = rawData.visits
+          .filter(v => isSameHour(v.createdAt))
+          .reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: hourStr,
-          Visitors: finalHourVisits,
+          Visitors: hourVisits,
           ActiveUsers: hourActiveUsers,
           Quizzes: rawData.quizzes.filter(q => isSameHour(q.createdAt)).length,
           Letters: rawData.letters.filter(l => isSameHour(l.createdAt)).length,
@@ -220,7 +192,7 @@ export default function DashboardPage() {
       let loopDate = new Date(startDate);
       
       if (dateFilter === "all") {
-        const allDates = [...rawData.letters, ...rawData.quizzes, ...rawData.scores]
+        const allDates = [...rawData.letters, ...rawData.quizzes, ...rawData.scores, ...rawData.visits]
           .map(i => new Date(i.createdAt).getTime())
           .filter(t => !isNaN(t));
         if (allDates.length > 0) {
@@ -241,13 +213,15 @@ export default function DashboardPage() {
 
         const dayScores = rawData.scores.filter(s => isSameDay(s.createdAt));
         const dailyUniqueUsers = new Set(dayScores.map(s => s.playerName?.toLowerCase())).size;
-        const dayVisits = rawData.visits.filter(v => isSameDay(v.createdAt)).length;
-
-        const finalDayVisits = dayVisits > 0 ? dayVisits : Math.floor(dailyUniqueUsers * 3.5) + (Math.floor(Math.random() * 5));
+        
+        // Sum visitors for this day
+        const dayVisits = rawData.visits
+          .filter(v => isSameDay(v.createdAt))
+          .reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: dateStr,
-          Visitors: finalDayVisits,
+          Visitors: dayVisits,
           ActiveUsers: dailyUniqueUsers,
           Quizzes: rawData.quizzes.filter(q => isSameDay(q.createdAt)).length,
           Letters: rawData.letters.filter(l => isSameDay(l.createdAt)).length,
@@ -267,7 +241,7 @@ export default function DashboardPage() {
       chartData,
       recentQuizzes,
       topCountries: topCountries.slice(0, 5), 
-      topPages: topPages.slice(0, 5) // Keep top 5 pages
+      topPages: topPages.slice(0, 5)
     });
 
   }, [rawData, dateFilter, customDates, loading]);
@@ -364,9 +338,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* ✅ ADDED minHeight: 0 HERE */}
               <div className="mt-4" style={{ width: '100%', height: 350, minWidth: 0, minHeight: 0 }}>
-                {/* ✅ CHANGED width to 99% HERE */}
                 <ResponsiveContainer width="99%" height="100%">
                   <AreaChart data={displayStats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
@@ -417,20 +389,28 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayStats.topPages.map((page, idx) => (
-                      <tr key={idx} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-zinc-700 truncate max-w-[200px]">
-                          {page.path}
-                        </td>
-                        <td className="px-4 py-3 text-right font-black text-zinc-900">
-                          {page.views.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5">
-                          <Timer className="w-3.5 h-3.5 text-zinc-400" />
-                          {page.avgTime}
+                    {displayStats.topPages.length > 0 ? (
+                      displayStats.topPages.map((page, idx) => (
+                        <tr key={idx} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-zinc-700 truncate max-w-[200px]">
+                            {page.path}
+                          </td>
+                          <td className="px-4 py-3 text-right font-black text-zinc-900">
+                            {page.views.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5">
+                            <Timer className="w-3.5 h-3.5 text-zinc-400" />
+                            {page.avgTime}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="px-4 py-6 text-center text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
+                          No page tracking data recorded yet.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -468,7 +448,7 @@ export default function DashboardPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-zinc-400 text-center py-4">No location data available.</p>
+                  <p className="text-sm text-zinc-400 text-center py-4 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-xl">No location data available.</p>
                 )}
               </div>
             </CardContent>
