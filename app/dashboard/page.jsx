@@ -135,14 +135,17 @@ export default function DashboardPage() {
     const pageMap = {};
     filteredVisits.forEach(v => {
       const page = v.pagePath || "Unknown";
-      const views = v.pageViews || 0;
+      
+      // THE FIX: In our custom DB, every row is 1 view. 
+      // We grab v.visitors (which defaults to 1 in our Mongoose model)
+      const views = v.visitors || 1; 
       const time = v.timeSpent || 0; 
       
       if (!pageMap[page]) pageMap[page] = { views: 0, totalTime: 0 };
       
       pageMap[page].views += views;
-      // Multiply avg time by views to get total time for this row, then sum it
-      pageMap[page].totalTime += (time * views);
+      // Just add the time spent for this specific visit
+      pageMap[page].totalTime += time;
     });
 
     const formatTime = (seconds) => {
@@ -156,7 +159,8 @@ export default function DashboardPage() {
       .map(([path, data]) => ({
         path,
         views: data.views,
-        avgTime: formatTime(data.views > 0 ? data.totalTime / data.views : 0)
+        // Calculate average: total time / number of views
+        avgTime: formatTime(data.views > 0 ? (data.totalTime / data.views) : 0)
       }))
       .sort((a, b) => b.views - a.views);
 
