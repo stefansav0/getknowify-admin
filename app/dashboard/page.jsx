@@ -135,6 +135,7 @@ export default function DashboardPage() {
     const pageMap = {};
     filteredVisits.forEach(v => {
       const page = v.pagePath || "Unknown";
+      const title = v.pageTitle || page;
       
       // THE FIX: In our custom DB, every row is 1 view. 
       // We grab v.visitors (which defaults to 1 in our Mongoose model)
@@ -375,51 +376,59 @@ export default function DashboardPage() {
 
           {/* TOP VISITED PAGES TABLE */}
           <Card className="rounded-3xl border-0 shadow-md bg-white">
-            <CardHeader className="pb-3 border-b border-zinc-100">
-              <div className="flex items-center gap-2">
-                <LayoutTemplate className="w-5 h-5 text-blue-500" />
-                <CardTitle className="text-xl">Top Visited Pages</CardTitle>
-              </div>
-              <CardDescription>See what content keeps users engaged</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-zinc-400 uppercase bg-zinc-50 rounded-lg">
-                    <tr>
-                      <th className="px-4 py-3 rounded-l-lg">Page Path</th>
-                      <th className="px-4 py-3 text-right">Views</th>
-                      <th className="px-4 py-3 text-right rounded-r-lg">Avg. Time on Page</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayStats.topPages.length > 0 ? (
-                      displayStats.topPages.map((page, idx) => (
-                        <tr key={idx} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-zinc-700 truncate max-w-[200px]">
-                            {page.path}
-                          </td>
-                          <td className="px-4 py-3 text-right font-black text-zinc-900">
-                            {page.views.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5">
-                            <Timer className="w-3.5 h-3.5 text-zinc-400" />
-                            {page.avgTime}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="3" className="px-4 py-6 text-center text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                          No page tracking data recorded yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+  <CardHeader className="pb-3 border-b border-zinc-100">
+    <div className="flex items-center gap-2">
+      <LayoutTemplate className="w-5 h-5 text-blue-500" />
+      <CardTitle className="text-xl">Top Visited Pages</CardTitle>
+    </div>
+    <CardDescription>See what content keeps users engaged</CardDescription>
+  </CardHeader>
+  <CardContent className="pt-4">
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="text-xs text-zinc-400 uppercase bg-zinc-50 rounded-lg">
+          <tr>
+            <th className="px-4 py-3 rounded-l-lg">Page Path</th>
+            <th className="px-4 py-3 text-right">Views</th>
+            <th className="px-4 py-3 text-right rounded-r-lg">Avg. Time on Page</th>
+          </tr>
+        </thead>
+        <tbody>
+          {displayStats.topPages.length > 0 ? (
+            displayStats.topPages.map((page, idx) => (
+              <tr key={idx} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
+                
+                {/* UPDATED: Now shows Title and Path! */}
+                <td className="px-4 py-3">
+                  <div className="font-semibold text-zinc-900 truncate max-w-[200px] mb-0.5">
+                    {page.title}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-medium truncate max-w-[200px]">
+                    {page.path}
+                  </div>
+                </td>
+
+                <td className="px-4 py-3 text-right font-black text-zinc-900">
+                  {page.views.toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5 h-full pt-4">
+                  <Timer className="w-3.5 h-3.5 text-zinc-400" />
+                  {page.avgTime}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="3" className="px-4 py-6 text-center text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
+                No page tracking data recorded yet.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </CardContent>
+</Card>
 
         </div>
 
