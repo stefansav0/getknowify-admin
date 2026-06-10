@@ -2,8 +2,28 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Mail, Brain, Users, FileQuestion, Sparkles, Activity, Loader2, Calendar, Eye, Globe, LayoutTemplate, Timer } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Mail,
+  Brain,
+  Users,
+  FileQuestion,
+  Sparkles,
+  Activity,
+  Loader2,
+  Calendar,
+  Eye,
+  Globe,
+  LayoutTemplate,
+  Timer,
+} from "lucide-react";
+
 import {
   AreaChart,
   Area,
@@ -12,22 +32,23 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
 } from "recharts";
 
 export default function DashboardPage() {
   const [rawData, setRawData] = useState({
     letters: [],
     quizzes: [],
+    nhiequizzes: [],
     scores: [],
-    visits: [], 
+    visits: [],
   });
 
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState("today");
   const [customDates, setCustomDates] = useState({
-    start: new Date().toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+    start: new Date().toISOString().split("T")[0],
+    end: new Date().toISOString().split("T")[0],
   });
 
   const [displayStats, setDisplayStats] = useState({
@@ -41,7 +62,7 @@ export default function DashboardPage() {
     chartData: [],
     recentQuizzes: [],
     topCountries: [],
-    topPages: [], 
+    topPages: [],
   });
 
   useEffect(() => {
@@ -51,20 +72,36 @@ export default function DashboardPage() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [lettersRes, quizzesRes, scoresRes, visitsRes] = await Promise.all([
+      const [
+        lettersRes,
+        quizzesRes,
+        nhiequizzesRes,
+        scoresRes,
+        visitsRes,
+      ] = await Promise.all([
         axios.get("/api/letters").catch(() => ({ data: [] })),
         axios.get("/api/quizzes").catch(() => ({ data: [] })),
         axios.get("/api/nhie").catch(() => ({ data: [] })),
         axios.get("/api/scores").catch(() => ({ data: [] })),
-        axios.get("/api/visits").catch(() => ({ data: [] })), 
+        axios.get("/api/visits").catch(() => ({ data: [] })),
       ]);
 
       setRawData({
-        letters: Array.isArray(lettersRes.data) ? lettersRes.data : lettersRes.data?.letters || [],
-        quizzes: Array.isArray(quizzesRes.data) ? quizzesRes.data : quizzesRes.data?.quizzes || [],
-        nhiequizzes: Array.isArray(nhiequizzesRes.data) ? nhiequizzesRes.data : nhiequizzesRes.data?.nhiequizzes || [],
-        scores: Array.isArray(scoresRes.data) ? scoresRes.data : scoresRes.data?.scores || [],
-        visits: Array.isArray(visitsRes.data) ? visitsRes.data : visitsRes.data?.visits || [],
+        letters: Array.isArray(lettersRes.data)
+          ? lettersRes.data
+          : lettersRes.data?.letters || [],
+        quizzes: Array.isArray(quizzesRes.data)
+          ? quizzesRes.data
+          : quizzesRes.data?.quizzes || [],
+        nhiequizzes: Array.isArray(nhiequizzesRes.data)
+          ? nhiequizzesRes.data
+          : nhiequizzesRes.data?.nhiequizzes || [],
+        scores: Array.isArray(scoresRes.data)
+          ? scoresRes.data
+          : scoresRes.data?.scores || [],
+        visits: Array.isArray(visitsRes.data)
+          ? visitsRes.data
+          : visitsRes.data?.visits || [],
       });
     } catch (error) {
       console.error("Dashboard Fetch Error:", error);
@@ -79,6 +116,7 @@ export default function DashboardPage() {
     const now = new Date();
     let startDate = new Date(0);
     let endDate = new Date();
+
     endDate.setHours(23, 59, 59, 999);
 
     if (dateFilter === "today") {
@@ -111,23 +149,20 @@ export default function DashboardPage() {
     const filteredScores = rawData.scores.filter((s) => inRange(s.createdAt));
     const filteredVisits = rawData.visits.filter((v) => inRange(v.createdAt));
 
-    const uniqueUserNames = new Set(filteredScores.map(s => s.playerName?.toLowerCase()));
+    const uniqueUserNames = new Set(filteredScores.map((s) => s.playerName?.toLowerCase()));
 
     // --- REAL VISITORS COUNT ---
-    // Sum up the visitors from GA4 (since data is grouped by hour/page)
     const visitorsCount = filteredVisits.reduce((acc, v) => acc + (v.visitors || 0), 0);
-
     const questionsCount = filteredQuizzes.reduce((acc, q) => acc + (q.questions?.length || 0), 0);
 
     const recentQuizzes = [...filteredQuizzes]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5);
 
-    // --- REAL COUNTRY DATA AGGREGATION ---
+    // --- TOP COUNTRIES ---
     const countryMap = {};
-    filteredVisits.forEach(v => {
+    filteredVisits.forEach((v) => {
       const country = v.country || "Unknown";
-      // Add the visitor count, not just 1
       countryMap[country] = (countryMap[country] || 0) + (v.visitors || 0);
     });
 
@@ -135,21 +170,15 @@ export default function DashboardPage() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    // --- REAL PAGE VIEWS & TIME AGGREGATION ---
+    // --- TOP PAGES ---
     const pageMap = {};
-    filteredVisits.forEach(v => {
+    filteredVisits.forEach((v) => {
       const page = v.pagePath || "Unknown";
       const title = v.pageTitle || page;
-      
-      // THE FIX: In our custom DB, every row is 1 view. 
-      // We grab v.visitors (which defaults to 1 in our Mongoose model)
-      const views = v.visitors || 1; 
-      const time = v.timeSpent || 0; 
-      
+      const views = v.visitors || 1; // default to 1 if not specified
+      const time = v.timeSpent || 0;
       if (!pageMap[page]) pageMap[page] = { views: 0, totalTime: 0 };
-      
       pageMap[page].views += views;
-      // Just add the time spent for this specific visit
       pageMap[page].totalTime += time;
     });
 
@@ -157,83 +186,90 @@ export default function DashboardPage() {
       if (isNaN(seconds) || !isFinite(seconds) || seconds === 0) return "0m 00s";
       const m = Math.floor(seconds / 60);
       const s = Math.floor(seconds % 60);
-      return `${m}m ${s.toString().padStart(2, '0')}s`;
+      return `${m}m ${s.toString().padStart(2, "0")}s`;
     };
 
     const topPages = Object.entries(pageMap)
       .map(([path, data]) => ({
         path,
+        title: path, // fallback if no title
         views: data.views,
-        // Calculate average: total time / number of views
-        avgTime: formatTime(data.views > 0 ? (data.totalTime / data.views) : 0)
+        avgTime: formatTime(data.views > 0 ? data.totalTime / data.views : 0),
       }))
       .sort((a, b) => b.views - a.views);
 
-    // --- CHART LOGIC (Real Data Only) ---
+    // --- CHART DATA ---
     const chartData = [];
-    
     if (dateFilter === "today") {
       for (let i = 0; i <= now.getHours(); i++) {
-        const hourStr = `${i === 0 ? 12 : i > 12 ? i - 12 : i} ${i >= 12 ? 'PM' : 'AM'}`;
-        
+        const hourStr = `${i === 0 ? 12 : i > 12 ? i - 12 : i} ${i >= 12 ? "PM" : "AM"}`;
         const isSameHour = (dString) => {
           const d = new Date(dString);
           return d.getHours() === i && d.getDate() === now.getDate();
         };
 
-        const hourScores = rawData.scores.filter(s => isSameHour(s.createdAt));
-        const hourActiveUsers = new Set(hourScores.map(s => s.playerName?.toLowerCase())).size;
-        
-        // Sum visitors for this hour
+        const hourScores = rawData.scores.filter((s) => isSameHour(s.createdAt));
+        const hourActiveUsers = new Set(hourScores.map((s) => s.playerName?.toLowerCase()))
+          .size;
+
         const hourVisits = rawData.visits
-          .filter(v => isSameHour(v.createdAt))
+          .filter((v) => isSameHour(v.createdAt))
           .reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: hourStr,
           Visitors: hourVisits,
           ActiveUsers: hourActiveUsers,
-          Quizzes: rawData.quizzes.filter(q => isSameHour(q.createdAt)).length,
-          Letters: rawData.letters.filter(l => isSameHour(l.createdAt)).length,
+          Quizzes: rawData.quizzes.filter((q) => isSameHour(q.createdAt)).length,
+          Letters: rawData.letters.filter((l) => isSameHour(l.createdAt)).length,
         });
       }
     } else {
       let loopDate = new Date(startDate);
-      
       if (dateFilter === "all") {
-        const allDates = [...rawData.letters, ...rawData.quizzes, ...rawData.scores, ...rawData.visits]
-          .map(i => new Date(i.createdAt).getTime())
-          .filter(t => !isNaN(t));
+        const allDates = [
+          ...rawData.letters,
+          ...rawData.quizzes,
+          ...rawData.scores,
+          ...rawData.visits,
+        ]
+          .map((i) => new Date(i.createdAt).getTime())
+          .filter((t) => !isNaN(t));
         if (allDates.length > 0) {
           loopDate = new Date(Math.min(...allDates));
-          loopDate.setHours(0,0,0,0);
+          loopDate.setHours(0, 0, 0, 0);
         } else {
-          loopDate = new Date(); 
+          loopDate = new Date();
         }
       }
-
-      while (loopDate <= endDate && chartData.length < 365) { 
-        const dateStr = loopDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        
+      while (loopDate <= endDate && chartData.length < 365) {
+        const dateStr = loopDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
         const isSameDay = (dString) => {
           const d = new Date(dString);
-          return d.getDate() === loopDate.getDate() && d.getMonth() === loopDate.getMonth() && d.getFullYear() === loopDate.getFullYear();
+          return (
+            d.getDate() === loopDate.getDate() &&
+            d.getMonth() === loopDate.getMonth() &&
+            d.getFullYear() === loopDate.getFullYear()
+          );
         };
 
-        const dayScores = rawData.scores.filter(s => isSameDay(s.createdAt));
-        const dailyUniqueUsers = new Set(dayScores.map(s => s.playerName?.toLowerCase())).size;
-        
-        // Sum visitors for this day
+        const dayScores = rawData.scores.filter((s) => isSameDay(s.createdAt));
+        const dailyUniqueUsers = new Set(dayScores.map((s) => s.playerName?.toLowerCase()))
+          .size;
+
         const dayVisits = rawData.visits
-          .filter(v => isSameDay(v.createdAt))
+          .filter((v) => isSameDay(v.createdAt))
           .reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: dateStr,
           Visitors: dayVisits,
           ActiveUsers: dailyUniqueUsers,
-          Quizzes: rawData.quizzes.filter(q => isSameDay(q.createdAt)).length,
-          Letters: rawData.letters.filter(l => isSameDay(l.createdAt)).length,
+          Quizzes: rawData.quizzes.filter((q) => isSameDay(q.createdAt)).length,
+          Letters: rawData.letters.filter((l) => isSameDay(l.createdAt)).length,
         });
 
         loopDate.setDate(loopDate.getDate() + 1);
@@ -245,14 +281,13 @@ export default function DashboardPage() {
       lettersCount: filteredLetters.length,
       quizzesCount: filteredQuizzes.length,
       scoresCount: filteredScores.length,
-      uniqueUsers: uniqueUserNames.size,
       questionsCount,
+      uniqueUsers: uniqueUserNames.size,
       chartData,
       recentQuizzes,
-      topCountries: topCountries.slice(0, 5), 
-      topPages: topPages.slice(0, 5)
+      topCountries: topCountries.slice(0, 5),
+      topPages: topPages.slice(0, 5),
     });
-
   }, [rawData, dateFilter, customDates, loading]);
 
   if (loading) {
@@ -266,16 +301,13 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-8 space-y-8 bg-zinc-50/50 min-h-screen">
-      
       {/* HEADER & FILTERS */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-6 rounded-3xl border shadow-sm">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">
             Analytics Overview
           </h1>
-          <p className="text-zinc-500">
-            Analyze your platform's performance and visitor traffic.
-          </p>
+          <p className="text-zinc-500">Analyze your platform's performance and visitor traffic.</p>
         </div>
 
         {/* DATE CONTROLS */}
@@ -300,14 +332,14 @@ export default function DashboardPage() {
               <input
                 type="date"
                 value={customDates.start}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+                onChange={(e) => setCustomDates((prev) => ({ ...prev, start: e.target.value }))}
                 className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl focus:ring-blue-500 block p-2.5"
               />
               <span className="text-zinc-400">to</span>
               <input
                 type="date"
                 value={customDates.end}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+                onChange={(e) => setCustomDates((prev) => ({ ...prev, end: e.target.value }))}
                 className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl focus:ring-blue-500 block p-2.5"
               />
             </div>
@@ -317,20 +349,54 @@ export default function DashboardPage() {
 
       {/* STATS GRID */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
-        <StatCard title="Total Visitors" subtitle="Website traffic" value={displayStats.visitorsCount} icon={Eye} color="emerald" />
-        <StatCard title="Active Users" subtitle="Quiz players" value={displayStats.uniqueUsers} icon={Users} color="orange" />
-        <StatCard title="Quizzes Created" subtitle="In selected period" value={displayStats.quizzesCount} icon={Brain} color="purple" />
-        <StatCard title="Quiz Attempts" subtitle="Scores submitted" value={displayStats.scoresCount} icon={Sparkles} color="pink" />
-        <StatCard title="Letters Created" subtitle="In selected period" value={displayStats.lettersCount} icon={Mail} color="blue" />
-        <StatCard title="Total Questions" subtitle="Across quizzes" value={displayStats.questionsCount} icon={FileQuestion} color="zinc" />
+        <StatCard
+          title="Total Visitors"
+          subtitle="Website traffic"
+          value={displayStats.visitorsCount}
+          icon={Eye}
+          color="emerald"
+        />
+        <StatCard
+          title="Active Users"
+          subtitle="Quiz players"
+          value={displayStats.uniqueUsers}
+          icon={Users}
+          color="orange"
+        />
+        <StatCard
+          title="Quizzes Created"
+          subtitle="In selected period"
+          value={displayStats.quizzesCount}
+          icon={Brain}
+          color="purple"
+        />
+        <StatCard
+          title="Quiz Attempts"
+          subtitle="Scores submitted"
+          value={displayStats.scoresCount}
+          icon={Sparkles}
+          color="pink"
+        />
+        <StatCard
+          title="Letters Created"
+          subtitle="In selected period"
+          value={displayStats.lettersCount}
+          icon={Mail}
+          color="blue"
+        />
+        <StatCard
+          title="Total Questions"
+          subtitle="Across quizzes"
+          value={displayStats.questionsCount}
+          icon={FileQuestion}
+          color="zinc"
+        />
       </div>
 
       {/* MAIN CONTENT SPLIT */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
-        {/* LEFT COLUMN: CHARTS & PAGE VIEWS */}
+        {/* LEFT COLUMN: Charts & Page Views */}
         <div className="col-span-1 xl:col-span-2 flex flex-col gap-6">
-          
           {/* MAIN CHART */}
           <Card className="rounded-3xl border-0 shadow-md bg-white">
             <CardHeader>
@@ -341,14 +407,16 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle className="text-xl">Platform Growth & Activity</CardTitle>
                   <CardDescription>
-                    {dateFilter === "today" ? "Hourly breakdown of website traffic and actions" : "Daily breakdown of website traffic and actions"}
+                    {dateFilter === "today"
+                      ? "Hourly breakdown of website traffic and actions"
+                      : "Daily breakdown of website traffic and actions"}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="mt-4" style={{ width: '100%', height: 350, minWidth: 0, minHeight: 0 }}>
-                <ResponsiveContainer width="99%" height="100%">
+              <div className="mt-4" style={{ width: "100%", height: 350, minWidth: 0, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height={350}>
                   <AreaChart data={displayStats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
@@ -367,78 +435,109 @@ export default function DashboardPage() {
                     <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} minTickGap={20} />
                     <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-                    <Tooltip contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
-                    <Legend verticalAlign="top" height={36}/>
-                    <Area type="monotone" name="Website Visitors" dataKey="Visitors" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorVisitors)" />
-                    <Area type="monotone" name="Active Players" dataKey="ActiveUsers" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
-                    <Area type="monotone" name="Quizzes Created" dataKey="Quizzes" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorQuizzes)" />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Area
+                      type="monotone"
+                      name="Website Visitors"
+                      dataKey="Visitors"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorVisitors)"
+                    />
+                    <Area
+                      type="monotone"
+                      name="Active Players"
+                      dataKey="ActiveUsers"
+                      stroke="#f97316"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorUsers)"
+                    />
+                    <Area
+                      type="monotone"
+                      name="Quizzes Created"
+                      dataKey="Quizzes"
+                      stroke="#9333ea"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorQuizzes)"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* TOP VISITED PAGES TABLE */}
+          {/* TOP Visited Pages Table */}
           <Card className="rounded-3xl border-0 shadow-md bg-white">
-  <CardHeader className="pb-3 border-b border-zinc-100">
-    <div className="flex items-center gap-2">
-      <LayoutTemplate className="w-5 h-5 text-blue-500" />
-      <CardTitle className="text-xl">Top Visited Pages</CardTitle>
-    </div>
-    <CardDescription>See what content keeps users engaged</CardDescription>
-  </CardHeader>
-  <CardContent className="pt-4">
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left">
-        <thead className="text-xs text-zinc-400 uppercase bg-zinc-50 rounded-lg">
-          <tr>
-            <th className="px-4 py-3 rounded-l-lg">Page Path</th>
-            <th className="px-4 py-3 text-right">Views</th>
-            <th className="px-4 py-3 text-right rounded-r-lg">Avg. Time on Page</th>
-          </tr>
-        </thead>
-        <tbody>
-          {displayStats.topPages.length > 0 ? (
-            displayStats.topPages.map((page, idx) => (
-              <tr key={idx} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                
-                {/* UPDATED: Now shows Title and Path! */}
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-zinc-900 truncate max-w-[200px] mb-0.5">
-                    {page.title}
-                  </div>
-                  <div className="text-[11px] text-zinc-400 font-medium truncate max-w-[200px]">
-                    {page.path}
-                  </div>
-                </td>
-
-                <td className="px-4 py-3 text-right font-black text-zinc-900">
-                  {page.views.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5 h-full pt-4">
-                  <Timer className="w-3.5 h-3.5 text-zinc-400" />
-                  {page.avgTime}
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="3" className="px-4 py-6 text-center text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                No page tracking data recorded yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </CardContent>
-</Card>
-
+            <CardHeader className="pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <LayoutTemplate className="w-5 h-5 text-blue-500" />
+                <CardTitle className="text-xl">Top Visited Pages</CardTitle>
+              </div>
+              <CardDescription>See what content keeps users engaged</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-zinc-400 uppercase bg-zinc-50 rounded-lg">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-lg">Page Path</th>
+                      <th className="px-4 py-3 text-right">Views</th>
+                      <th className="px-4 py-3 text-right rounded-r-lg">Avg. Time on Page</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayStats.topPages.length > 0 ? (
+                      displayStats.topPages.map((page, idx) => (
+                        <tr
+                          key={idx}
+                          className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-zinc-900 truncate max-w-[200px] mb-0.5">
+                              {page.title}
+                            </div>
+                            <div className="text-[11px] text-zinc-400 font-medium truncate max-w-[200px]">
+                              {page.path}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-black text-zinc-900">
+                            {page.views.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right text-zinc-500 flex items-center justify-end gap-1.5 h-full pt-4">
+                            <Timer className="w-3.5 h-3.5 text-zinc-400" />
+                            {page.avgTime}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="3"
+                          className="px-4 py-6 text-center text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200"
+                        >
+                          No page tracking data recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* RIGHT COLUMN: SIDEBAR */}
+        {/* RIGHT COLUMN: Sidebar */}
         <div className="col-span-1 flex flex-col gap-6">
-          
           {/* COUNTRY DATA SECTION */}
           <Card className="rounded-3xl border-0 shadow-md bg-white flex flex-col">
             <CardHeader className="pb-3 border-b border-zinc-100">
@@ -465,13 +564,15 @@ export default function DashboardPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-zinc-400 text-center py-4 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-xl">No location data available.</p>
+                  <p className="text-sm text-zinc-400 text-center py-4 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-xl">
+                    No location data available.
+                  </p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* RECENT QUIZZES SECTION */}
+          {/* RECENT QUIZZES */}
           <Card className="rounded-3xl border-0 shadow-md bg-white flex flex-col flex-1">
             <CardHeader className="pb-3 border-b border-zinc-100">
               <CardTitle className="text-xl">Filtered Quizzes</CardTitle>
@@ -495,11 +596,15 @@ export default function DashboardPage() {
                           by {quiz.creatorName || "Unknown"}
                         </span>
                         <span className="text-zinc-400 text-[10px] uppercase font-bold tracking-wider bg-zinc-100 px-2 py-1 rounded-md">
-                          {dateFilter === "today" ? (
-                            new Date(quiz.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-                          ) : (
-                            new Date(quiz.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                          )}
+                          {dateFilter === "today"
+                            ? new Date(quiz.createdAt).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })
+                            : new Date(quiz.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
                         </span>
                       </div>
                     </div>
@@ -512,13 +617,13 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
   );
 }
 
+// StatCard component
 function StatCard({ title, subtitle, value, icon: Icon, color }) {
   const colorMap = {
     blue: "bg-blue-50 text-blue-600",
@@ -537,9 +642,7 @@ function StatCard({ title, subtitle, value, icon: Icon, color }) {
           <div>
             <p className="text-xs font-bold text-zinc-500 whitespace-nowrap">{title}</p>
             <p className="text-[10px] text-zinc-400 mb-2 whitespace-nowrap">{subtitle}</p>
-            <h2 className="text-3xl lg:text-4xl font-black tracking-tight text-zinc-900 mt-1">
-              {value.toLocaleString()}
-            </h2>
+            <h2 className="text-3xl lg:text-4xl font-black tracking-tight text-zinc-900 mt-1">{value.toLocaleString()}</h2>
           </div>
           <div className={`p-2.5 rounded-xl ${colorMap[color]}`}>
             <Icon size={20} strokeWidth={2.5} />
