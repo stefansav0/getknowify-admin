@@ -28,6 +28,11 @@ const menuItems = [
     href: "/quizzes",
   },
   {
+    name: "Never Have I Ever",
+    icon: ClipboardList,
+    href: "/nhie",
+  },
+  {
     name: "Scores",
     icon: Star,
     href: "/scores",

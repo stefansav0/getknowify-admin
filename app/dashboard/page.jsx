@@ -34,6 +34,7 @@ export default function DashboardPage() {
     visitorsCount: 0,
     lettersCount: 0,
     quizzesCount: 0,
+    nhiequizzesCount: 0,
     scoresCount: 0,
     uniqueUsers: 0,
     questionsCount: 0,
@@ -53,6 +54,7 @@ export default function DashboardPage() {
       const [lettersRes, quizzesRes, scoresRes, visitsRes] = await Promise.all([
         axios.get("/api/letters").catch(() => ({ data: [] })),
         axios.get("/api/quizzes").catch(() => ({ data: [] })),
+        axios.get("/api/nhie").catch(() => ({ data: [] })),
         axios.get("/api/scores").catch(() => ({ data: [] })),
         axios.get("/api/visits").catch(() => ({ data: [] })), 
       ]);
@@ -60,6 +62,7 @@ export default function DashboardPage() {
       setRawData({
         letters: Array.isArray(lettersRes.data) ? lettersRes.data : lettersRes.data?.letters || [],
         quizzes: Array.isArray(quizzesRes.data) ? quizzesRes.data : quizzesRes.data?.quizzes || [],
+        nhiequizzes: Array.isArray(nhiequizzesRes.data) ? nhiequizzesRes.data : nhiequizzesRes.data?.nhiequizzes || [],
         scores: Array.isArray(scoresRes.data) ? scoresRes.data : scoresRes.data?.scores || [],
         visits: Array.isArray(visitsRes.data) ? visitsRes.data : visitsRes.data?.visits || [],
       });
@@ -104,6 +107,7 @@ export default function DashboardPage() {
 
     const filteredLetters = rawData.letters.filter((l) => inRange(l.createdAt));
     const filteredQuizzes = rawData.quizzes.filter((q) => inRange(q.createdAt));
+    const filteredNhieQuizzes = rawData.nhiequizzes.filter((n) => inRange(n.createdAt));
     const filteredScores = rawData.scores.filter((s) => inRange(s.createdAt));
     const filteredVisits = rawData.visits.filter((v) => inRange(v.createdAt));
 
