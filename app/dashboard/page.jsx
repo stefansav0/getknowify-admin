@@ -22,6 +22,7 @@ import {
   Globe,
   LayoutTemplate,
   Timer,
+  Smile, // Added icon for NHIE Quizzes
 } from "lucide-react";
 
 import {
@@ -55,7 +56,7 @@ export default function DashboardPage() {
     visitorsCount: 0,
     lettersCount: 0,
     quizzesCount: 0,
-    nhiequizzesCount: 0,
+    nhiequizzesCount: 0, // Track NHIE specific instances
     scoresCount: 0,
     uniqueUsers: 0,
     questionsCount: 0,
@@ -95,7 +96,7 @@ export default function DashboardPage() {
           : quizzesRes.data?.quizzes || [],
         nhiequizzes: Array.isArray(nhiequizzesRes.data)
           ? nhiequizzesRes.data
-          : nhiequizzesRes.data?.nhiequizzes || [],
+          : nhiequizzesRes.data?.nhiequizzes || nhiequizzesRes.data?.quizzes || nhiequizzesRes.data || [],
         scores: Array.isArray(scoresRes.data)
           ? scoresRes.data
           : scoresRes.data?.scores || [],
@@ -153,9 +154,14 @@ export default function DashboardPage() {
 
     // --- REAL VISITORS COUNT ---
     const visitorsCount = filteredVisits.reduce((acc, v) => acc + (v.visitors || 0), 0);
-    const questionsCount = filteredQuizzes.reduce((acc, q) => acc + (q.questions?.length || 0), 0);
+    
+    // Aggregated questions from both standard and NHIE items if applicable
+    const standardQuestions = filteredQuizzes.reduce((acc, q) => acc + (q.questions?.length || 0), 0);
+    const nhieQuestions = filteredNhieQuizzes.reduce((acc, n) => acc + (n.questions?.length || 0), 0);
+    const questionsCount = standardQuestions + nhieQuestions;
 
-    const recentQuizzes = [...filteredQuizzes]
+    // Combine recent structures to review modern activity feeds
+    const recentQuizzes = [...filteredQuizzes, ...filteredNhieQuizzes.map(n => ({ ...n, quizTitle: n.quizTitle || `NHIE Game (${n.creatorName || 'Anonymous'})` }))]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 5);
 
@@ -174,8 +180,7 @@ export default function DashboardPage() {
     const pageMap = {};
     filteredVisits.forEach((v) => {
       const page = v.pagePath || "Unknown";
-      const title = v.pageTitle || page;
-      const views = v.visitors || 1; // default to 1 if not specified
+      const views = v.visitors || 1; 
       const time = v.timeSpent || 0;
       if (!pageMap[page]) pageMap[page] = { views: 0, totalTime: 0 };
       pageMap[page].views += views;
@@ -192,35 +197,33 @@ export default function DashboardPage() {
     const topPages = Object.entries(pageMap)
       .map(([path, data]) => ({
         path,
-        title: path, // fallback if no title
+        title: path,
         views: data.views,
         avgTime: formatTime(data.views > 0 ? data.totalTime / data.views : 0),
       }))
       .sort((a, b) => b.views - a.views);
 
-    // --- CHART DATA ---
+    // --- CHART DATA GENERATION ---
     const chartData = [];
     if (dateFilter === "today") {
       for (let i = 0; i <= now.getHours(); i++) {
         const hourStr = `${i === 0 ? 12 : i > 12 ? i - 12 : i} ${i >= 12 ? "PM" : "AM"}`;
         const isSameHour = (dString) => {
+          if (!dString) return false;
           const d = new Date(dString);
-          return d.getHours() === i && d.getDate() === now.getDate();
+          return d.getHours() === i && d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         };
 
         const hourScores = rawData.scores.filter((s) => isSameHour(s.createdAt));
-        const hourActiveUsers = new Set(hourScores.map((s) => s.playerName?.toLowerCase()))
-          .size;
-
-        const hourVisits = rawData.visits
-          .filter((v) => isSameHour(v.createdAt))
-          .reduce((sum, v) => sum + (v.visitors || 0), 0);
+        const hourActiveUsers = new Set(hourScores.map((s) => s.playerName?.toLowerCase())).size;
+        const hourVisits = rawData.visits.filter((v) => isSameHour(v.createdAt)).reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: hourStr,
           Visitors: hourVisits,
           ActiveUsers: hourActiveUsers,
           Quizzes: rawData.quizzes.filter((q) => isSameHour(q.createdAt)).length,
+          NHIEQuizzes: rawData.nhiequizzes.filter((n) => isSameHour(n.createdAt)).length,
           Letters: rawData.letters.filter((l) => isSameHour(l.createdAt)).length,
         });
       }
@@ -230,6 +233,7 @@ export default function DashboardPage() {
         const allDates = [
           ...rawData.letters,
           ...rawData.quizzes,
+          ...rawData.nhiequizzes,
           ...rawData.scores,
           ...rawData.visits,
         ]
@@ -248,6 +252,7 @@ export default function DashboardPage() {
           day: "numeric",
         });
         const isSameDay = (dString) => {
+          if (!dString) return false;
           const d = new Date(dString);
           return (
             d.getDate() === loopDate.getDate() &&
@@ -257,18 +262,15 @@ export default function DashboardPage() {
         };
 
         const dayScores = rawData.scores.filter((s) => isSameDay(s.createdAt));
-        const dailyUniqueUsers = new Set(dayScores.map((s) => s.playerName?.toLowerCase()))
-          .size;
-
-        const dayVisits = rawData.visits
-          .filter((v) => isSameDay(v.createdAt))
-          .reduce((sum, v) => sum + (v.visitors || 0), 0);
+        const dailyUniqueUsers = new Set(dayScores.map((s) => s.playerName?.toLowerCase())).size;
+        const dayVisits = rawData.visits.filter((v) => isSameDay(v.createdAt)).reduce((sum, v) => sum + (v.visitors || 0), 0);
 
         chartData.push({
           name: dateStr,
           Visitors: dayVisits,
           ActiveUsers: dailyUniqueUsers,
           Quizzes: rawData.quizzes.filter((q) => isSameDay(q.createdAt)).length,
+          NHIEQuizzes: rawData.nhiequizzes.filter((n) => isSameDay(n.createdAt)).length,
           Letters: rawData.letters.filter((l) => isSameDay(l.createdAt)).length,
         });
 
@@ -280,6 +282,7 @@ export default function DashboardPage() {
       visitorsCount,
       lettersCount: filteredLetters.length,
       quizzesCount: filteredQuizzes.length,
+      nhiequizzesCount: filteredNhieQuizzes.length,
       scoresCount: filteredScores.length,
       questionsCount,
       uniqueUsers: uniqueUserNames.size,
@@ -348,7 +351,7 @@ export default function DashboardPage() {
       </div>
 
       {/* STATS GRID */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4">
         <StatCard
           title="Total Visitors"
           subtitle="Website traffic"
@@ -365,13 +368,20 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Quizzes Created"
-          subtitle="In selected period"
+          subtitle="Standard trivia"
           value={displayStats.quizzesCount}
           icon={Brain}
           color="purple"
         />
         <StatCard
-          title="Quiz Attempts"
+          title="NHIE Created"
+          subtitle="Never Have I Ever"
+          value={displayStats.nhiequizzesCount}
+          icon={Smile}
+          color="green"
+        />
+        <StatCard
+          title="Game Attempts"
           subtitle="Scores submitted"
           value={displayStats.scoresCount}
           icon={Sparkles}
@@ -386,7 +396,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Total Questions"
-          subtitle="Across quizzes"
+          subtitle="Across all pools"
           value={displayStats.questionsCount}
           icon={FileQuestion}
           color="zinc"
@@ -431,6 +441,10 @@ export default function DashboardPage() {
                         <stop offset="5%" stopColor="#9333ea" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="#9333ea" stopOpacity={0} />
                       </linearGradient>
+                      <linearGradient id="colorNhie" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
                     </defs>
                     <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} minTickGap={20} />
                     <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
@@ -463,12 +477,21 @@ export default function DashboardPage() {
                     />
                     <Area
                       type="monotone"
-                      name="Quizzes Created"
+                      name="Standard Quizzes"
                       dataKey="Quizzes"
                       stroke="#9333ea"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#colorQuizzes)"
+                    />
+                    <Area
+                      type="monotone"
+                      name="NHIE Quizzes"
+                      dataKey="NHIEQuizzes"
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorNhie)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -572,23 +595,23 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* RECENT QUIZZES */}
+          {/* RECENT QUIZZES (NOW MIXED WITH NHIE CONFIGURATIONS) */}
           <Card className="rounded-3xl border-0 shadow-md bg-white flex flex-col flex-1">
             <CardHeader className="pb-3 border-b border-zinc-100">
-              <CardTitle className="text-xl">Filtered Quizzes</CardTitle>
-              <CardDescription>Recently created in this period</CardDescription>
+              <CardTitle className="text-xl">Filtered Activities</CardTitle>
+              <CardDescription>Recent layouts created in this period</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
               <div className="space-y-3">
                 {displayStats.recentQuizzes.length > 0 ? (
-                  displayStats.recentQuizzes.map((quiz) => (
+                  displayStats.recentQuizzes.map((quiz, idx) => (
                     <div
-                      key={quiz._id}
+                      key={quiz._id || idx}
                       className="group flex flex-col gap-1 border border-zinc-100 rounded-2xl p-3 hover:border-blue-100 hover:bg-blue-50/50 transition-all cursor-default"
                     >
                       <div className="flex justify-between items-start">
                         <h3 className="font-semibold text-sm text-zinc-900 group-hover:text-blue-700 transition-colors line-clamp-1">
-                          {quiz.quizTitle || "Untitled Quiz"}
+                          {quiz.quizTitle}
                         </h3>
                       </div>
                       <div className="flex items-center justify-between text-xs mt-1">
@@ -611,7 +634,7 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <div className="text-center p-6 text-sm text-zinc-400 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                    No quizzes found for this time range.
+                    No platform creations found for this time range.
                   </div>
                 )}
               </div>
@@ -639,12 +662,12 @@ function StatCard({ title, subtitle, value, icon: Icon, color }) {
     <Card className="rounded-3xl border-0 shadow-md bg-white hover:-translate-y-1 transition-transform duration-300">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold text-zinc-500 whitespace-nowrap">{title}</p>
-            <p className="text-[10px] text-zinc-400 mb-2 whitespace-nowrap">{subtitle}</p>
-            <h2 className="text-3xl lg:text-4xl font-black tracking-tight text-zinc-900 mt-1">{value.toLocaleString()}</h2>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-zinc-500 truncate">{title}</p>
+            <p className="text-[10px] text-zinc-400 mb-2 truncate">{subtitle}</p>
+            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-zinc-900 mt-1">{value.toLocaleString()}</h2>
           </div>
-          <div className={`p-2.5 rounded-xl ${colorMap[color]}`}>
+          <div className={`p-2.5 rounded-xl shrink-0 ${colorMap[color]}`}>
             <Icon size={20} strokeWidth={2.5} />
           </div>
         </div>
