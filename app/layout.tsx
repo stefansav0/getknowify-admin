@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
-
 import Script from "next/script";
-
-import {
-  Geist,
-  Geist_Mono,
-} from "next/font/google";
-
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 // ==========================================
@@ -28,9 +22,23 @@ const geistMono = Geist_Mono({
 // ==========================================
 
 export const metadata: Metadata = {
-  title: "GetKnowify",
-  description:
-    "Real-time analytics & quiz platform",
+  title: "GetKnowify Admin",
+  description: "Real-time analytics & quiz platform",
+
+  // Prevent search engines from indexing the admin panel
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      "max-video-preview": -1,
+      "max-image-preview": "none",
+      "max-snippet": -1,
+    },
+  },
 };
 
 // ==========================================
@@ -42,7 +50,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html
       lang="en"
@@ -53,50 +60,13 @@ export default function RootLayout({
         antialiased
       `}
     >
-
       <body className="min-h-full flex flex-col bg-zinc-100">
-
-        {/* ========================================== */}
-        {/* WEBSITE CONTENT */}
-        {/* ========================================== */}
-
         {children}
 
-        {/* ========================================== */}
-        {/* GOOGLE ANALYTICS */}
-        {/* ========================================== */}
+        
+        
 
-        <Script
-          strategy="afterInteractive"
-          src="https://www.googletagmanager.com/gtag/js?id=G-9YDEEPLCYP"
-        />
-
-        <Script
-          id="google-analytics"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer =
-                window.dataLayer || [];
-
-              function gtag(){
-                dataLayer.push(arguments);
-              }
-
-              gtag('js', new Date());
-
-              gtag(
-                'config',
-                'G-9YDEEPLCYP',
-                {
-                  page_path:
-                    window.location.pathname,
-                }
-              );
-            `,
-          }}
-        />
-
+        
       </body>
     </html>
   );
