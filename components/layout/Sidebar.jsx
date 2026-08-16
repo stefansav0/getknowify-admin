@@ -20,6 +20,7 @@ const menuItems = [
   { name: "Scores", icon: Star, href: "/scores" },
   { name: "Blog", icon: MessageCircle, href: "/blogs" },
   { name: "Feedback", icon: MessageCircle, href: "/feedback" },
+  { name: "affiliate", icon: Star, href: "/affiliate" },
 ];
 
 export default function Sidebar({ closeSidebar }) {
