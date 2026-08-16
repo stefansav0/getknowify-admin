@@ -135,6 +135,7 @@ export default function AffiliatePage() {
   const dailyClicks = data?.dailyClicks || [];
   const deviceClicks = data?.deviceClicks || [];
   const sourceClicks = data?.sourceClicks || [];
+  const countryClicks = data?.countryClicks || [];
   const recentClicks = data?.recentClicks || [];
 
   // =========================================================
@@ -164,14 +165,38 @@ export default function AffiliatePage() {
               </div>
 
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                  Affiliate Tracking
-                </h1>
+    <h1 className="text-3xl font-bold text-slate-900">
+      Affiliate
+    </h1>
 
-                <p className="text-sm text-slate-500">
-                  The Art of Natural Attraction
-                </p>
-              </div>
+    <p className="mt-1 text-sm text-slate-500">
+      Track clicks, sales and commissions
+    </p>
+  </div>
+
+  <a
+    href="/affiliate/sale"
+    className="
+      inline-flex
+      items-center
+      justify-center
+      gap-2
+      rounded-xl
+      bg-slate-900
+      px-5
+      py-3
+      text-sm
+      font-semibold
+      text-white
+      shadow-sm
+      transition
+      hover:bg-slate-800
+    "
+  >
+    💰 Sale Data
+  </a>
+
+
             </div>
           </div>
 
@@ -589,6 +614,119 @@ export default function AffiliatePage() {
         </div>
 
         {/* =====================================================
+    COUNTRY BREAKDOWN
+====================================================== */}
+
+<div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+  <div className="border-b border-slate-200 p-5 sm:p-6">
+
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+      <div>
+        <h2 className="text-lg font-bold text-slate-900">
+          Visitors by Country
+        </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Countries generating affiliate clicks
+        </p>
+      </div>
+
+      <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
+        {countryClicks.length} countries
+      </div>
+
+    </div>
+
+  </div>
+
+  <div className="p-5 sm:p-6">
+
+    {countryClicks.length === 0 ? (
+      <EmptyData />
+    ) : (
+
+      <div className="space-y-5">
+
+        {countryClicks.map((item) => {
+
+          const percentage =
+            stats.totalClicks > 0
+              ? Math.round(
+                  (item.clicks /
+                    stats.totalClicks) *
+                    100
+                )
+              : 0;
+
+          const countryName =
+            getCountryName(
+              item._id,
+              item.country
+            );
+
+          return (
+            <div key={item._id}>
+
+              <div className="mb-2 flex items-center justify-between">
+
+                <div className="flex items-center gap-3">
+
+                  <span className="text-xl">
+                    {getCountryFlag(item._id)}
+                  </span>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {countryName}
+                    </p>
+
+                    <p className="text-xs uppercase text-slate-400">
+                      {item._id}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="text-right">
+
+                  <p className="text-sm font-bold text-slate-900">
+                    {item.clicks}
+                  </p>
+
+                  <p className="text-xs text-slate-400">
+                    {percentage}%
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+
+                <div
+                  className="h-full rounded-full bg-slate-900 transition-all duration-700"
+                  style={{
+                    width: `${percentage}%`,
+                  }}
+                />
+
+              </div>
+
+            </div>
+          );
+        })}
+
+      </div>
+
+    )}
+
+  </div>
+
+</div>
+
+        {/* =====================================================
             RECENT CLICKS
         ====================================================== */}
 
@@ -627,20 +765,24 @@ export default function AffiliatePage() {
                   <tr className="border-b border-slate-200 bg-slate-50 text-left">
 
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Date & Time
-                    </th>
+  Date & Time
+</th>
 
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Device
-                    </th>
+<th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+  Country
+</th>
 
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Source
-                    </th>
+<th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+  Device
+</th>
 
-                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Referrer
-                    </th>
+<th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+  Source
+</th>
+
+<th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+  Referrer
+</th>
 
                   </tr>
                 </thead>
@@ -666,6 +808,33 @@ export default function AffiliatePage() {
                           </p>
 
                         </td>
+
+                        <td className="px-5 py-4">
+
+  <div className="flex items-center gap-2">
+
+    <span className="text-lg">
+      {getCountryFlag(
+        click.countryCode
+      )}
+    </span>
+
+    <div>
+      <p className="text-sm font-semibold text-slate-700">
+        {getCountryName(
+          click.countryCode,
+          click.country
+        )}
+      </p>
+
+      <p className="text-xs uppercase text-slate-400">
+        {click.countryCode || "XX"}
+      </p>
+    </div>
+
+  </div>
+
+</td>
 
                         <td className="px-5 py-4">
 
@@ -957,6 +1126,70 @@ function getDeviceIcon(device) {
     default:
       return "🌐";
   }
+}
+
+// =============================================================
+// COUNTRY NAME
+// =============================================================
+
+function getCountryName(
+  countryCode,
+  fallback
+) {
+  if (!countryCode) {
+    return fallback || "Unknown";
+  }
+
+  try {
+    const displayNames =
+      new Intl.DisplayNames(
+        ["en"],
+        {
+          type: "region",
+        }
+      );
+
+    return (
+      displayNames.of(
+        countryCode.toUpperCase()
+      ) ||
+      fallback ||
+      countryCode
+    );
+  } catch {
+    return (
+      fallback ||
+      countryCode
+    );
+  }
+}
+
+// =============================================================
+// COUNTRY FLAG
+// =============================================================
+
+function getCountryFlag(
+  countryCode
+) {
+  if (
+    !countryCode ||
+    countryCode === "XX" ||
+    countryCode.length !== 2
+  ) {
+    return "🌐";
+  }
+
+  return countryCode
+    .toUpperCase()
+    .split("")
+    .map(
+      (char) =>
+        String.fromCodePoint(
+          127397 +
+            char.charCodeAt(0)
+        )
+    )
+    .join("");
 }
 
 // =============================================================
