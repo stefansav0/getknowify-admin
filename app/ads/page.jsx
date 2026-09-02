@@ -22,7 +22,6 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import api from "@/lib/axios";
 
 export default function AdsPage() {
   const [ads, setAds] = useState([]);
@@ -44,7 +43,6 @@ export default function AdsPage() {
 
   const [form, setForm] = useState(emptyForm);
 
-
   // ============================================================
   // FETCH ADS
   // ============================================================
@@ -53,7 +51,7 @@ export default function AdsPage() {
     try {
       setLoading(true);
 
-      const response = await api.get("/api/ads");
+      const response = await axios.get(`https://www.getknowify.com/api/ads`);
 
       if (response.data?.success) {
         setAds(response.data.ads || []);
@@ -120,9 +118,9 @@ export default function AdsPage() {
       setSaving(true);
 
       if (editingAd) {
-        await api.put(`/api/ads/${editingAd._id}`, form);
+        await axios.put(`https://www.getknowify.com/api/ads/${editingAd._id}`, form);
       } else {
-        await api.post("/api/ads", form);
+        await axios.post(`https://www.getknowify.com/api/ads`, form);
       }
 
       setShowModal(false);
@@ -154,7 +152,7 @@ export default function AdsPage() {
     if (!confirmed) return;
 
     try {
-      await api.delete(`/api/ads/${id}`);
+      await axios.delete(`https://www.getknowify.com/api/ads/${id}`);
 
       await fetchAds();
     } catch (error) {
@@ -176,7 +174,7 @@ export default function AdsPage() {
       const newStatus =
         ad.status === "active" ? "inactive" : "active";
 
-      await api.put(`/api/ads/${ad._id}`, {
+      await axios.put(`https://www.getknowify.com/api/ads/${ad._id}`, {
         ...ad,
         status: newStatus,
       });
