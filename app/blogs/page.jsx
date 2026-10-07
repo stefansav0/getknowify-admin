@@ -18,12 +18,8 @@ import {
 export default function BlogsListPage() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // ==========================================
-  // SEARCH + FILTER STATE
-  // ==========================================
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all"); // "all" | "published" | "draft"
+  const [activeFilter, setActiveFilter] = useState("all");
 
   // ==========================================
   // FETCH ALL BLOGS ON MOUNT
@@ -58,7 +54,6 @@ export default function BlogsListPage() {
     );
     if (!confirmDelete) return;
 
-    // Optimistic UI update
     const previousBlogs = [...blogs];
     setBlogs(blogs.filter((blog) => blog.slug !== slug));
 
@@ -84,11 +79,7 @@ export default function BlogsListPage() {
   const counts = useMemo(() => {
     const published = blogs.filter((b) => b.status === "published").length;
     const draft = blogs.filter((b) => b.status !== "published").length;
-    return {
-      all: blogs.length,
-      published,
-      draft,
-    };
+    return { all: blogs.length, published, draft };
   }, [blogs]);
 
   // ==========================================
@@ -98,17 +89,14 @@ export default function BlogsListPage() {
     const query = searchQuery.trim().toLowerCase();
 
     return blogs.filter((blog) => {
-      // 1. Status filter
       const matchesFilter =
         activeFilter === "all"
           ? true
           : activeFilter === "published"
           ? blog.status === "published"
-          : blog.status !== "published"; // draft (anything not published)
+          : blog.status !== "published";
 
       if (!matchesFilter) return false;
-
-      // 2. Search filter
       if (!query) return true;
 
       const title = (blog.title || "").toLowerCase();
@@ -123,9 +111,6 @@ export default function BlogsListPage() {
     });
   }, [blogs, searchQuery, activeFilter]);
 
-  // ==========================================
-  // TAB CONFIG
-  // ==========================================
   const tabs = [
     { key: "all", label: "All Posts", count: counts.all },
     { key: "published", label: "Published", count: counts.published },
@@ -134,9 +119,7 @@ export default function BlogsListPage() {
 
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-      {/* ========================================== */}
-      {/* BACK TO DASHBOARD NAVIGATION */}
-      {/* ========================================== */}
+      {/* BACK TO DASHBOARD */}
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors group w-fit"
@@ -167,9 +150,7 @@ export default function BlogsListPage() {
         </Link>
       </div>
 
-      {/* ========================================== */}
       {/* SEARCH + FILTER BAR */}
-      {/* ========================================== */}
       <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-xl shadow-zinc-200/40 p-4 md:p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           {/* SEARCH INPUT */}
@@ -226,11 +207,10 @@ export default function BlogsListPage() {
           </div>
         </div>
 
-        {/* ACTIVE SEARCH SUMMARY */}
+        {/* SEARCH SUMMARY */}
         {searchQuery && !loading && (
           <p className="text-xs font-bold text-zinc-400 px-1">
-            Showing{" "}
-            <span className="text-zinc-900">{filteredBlogs.length}</span>{" "}
+            Showing <span className="text-zinc-900">{filteredBlogs.length}</span>{" "}
             result{filteredBlogs.length !== 1 ? "s" : ""} for "
             <span className="text-zinc-900">{searchQuery}</span>"
           </p>
@@ -289,7 +269,6 @@ export default function BlogsListPage() {
                         </p>
                       </div>
 
-                      {/* RESET FILTERS BUTTON */}
                       {blogs.length > 0 &&
                         (searchQuery || activeFilter !== "all") && (
                           <button
@@ -341,15 +320,15 @@ export default function BlogsListPage() {
                         className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${
                           blog.status === "published"
                             ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                            : "bg-amber-50 text-amber-600 border-amber-100"
+                            : "bg-zinc-100 text-zinc-500 border-zinc-200"
                         }`}
                       >
                         {blog.status || "draft"}
                       </span>
                     </td>
 
-                    <td className="px-6 py-6 text-zinc-400">
-                      <div className="flex items-center gap-2">
+                    <td className="px-6 py-6">
+                      <div className="flex items-center gap-2 text-zinc-400">
                         <Eye size={16} />
                         <span className="text-sm font-bold">
                           {blog.views || 0}
@@ -359,7 +338,6 @@ export default function BlogsListPage() {
 
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        {/* EDIT BY SLUG */}
                         <Link
                           href={`/blogs/edit/${blog.slug}`}
                           className="p-2.5 bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:border-zinc-900 rounded-xl transition-all shadow-sm group/btn"
@@ -371,7 +349,6 @@ export default function BlogsListPage() {
                           />
                         </Link>
 
-                        {/* DELETE BY SLUG */}
                         <button
                           onClick={() => handleDelete(blog.slug)}
                           className="p-2.5 bg-white border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all shadow-sm group/btn"
